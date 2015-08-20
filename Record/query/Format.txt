@@ -1,0 +1,56 @@
+Client Quest:
+========================32bytes Plaintext Block
+WiChatCQ		8bytes Header
+XXXXXXXXXXXXXXXX	16bytes Session
+X(x8)			8bytes(64bits) Checksum of Unencrypted Ciphertext Block(binary)
+
+========================Varied Length Ciphertext Block
+XXXXXXX\0		Max 8 bytes ID
+X			1byte Action Type
+X			1byte Additional Option
+X(xN)			Varied Length Information Block:
+{
+Action:
+1、Get Friend List: 
+	NULL;
+2、Add Friend:
+	<IDList><ID>XXXXXXX\0</ID><IDList>;
+3、Del Friend:
+	<IDList><ID>XXXXXXX\0</ID><IDList>;
+4、Check Friend: 
+	<IDList><ID>XXXXXXX\0</ID></IDList>;
+5、Change Session:
+	<KEY>XXXXXXXXXXXXXXXX</KEY><KEY>XXXXXXXXXXXXXXXX</KEY>;
+6、Get Offline Message:
+	NULL;
+7、Set Offline Message:
+	<MSG>X(x31)\0</MSG>;
+}
+
+Server Response:
+========================16btes Plaintext Block
+WiChatSR		8bytes Header
+X(x8)			8bytes(64bits) Checksum of Unencrypted Ciphertext Block(binary)
+
+========================Varied Length Ciphertext Block
+X			1byte Result
+X			1byte Additional Information
+X(xN)			Varied Length Information Block
+{
+Action:
+1、Get Friend List: 
+	<IDList type=current><ID>XXXXXXX\0</ID></IDList>
+2、Add Friend:
+	<IDList type=failed><ID>XXXXXXX\0</ID></IDList>;
+3、Del Friend:
+	<IDList type=failed><ID>XXXXXXX\0</ID></IDList>;
+4、Check Friend: 
+	Option=0: <IDList><ID>XXXXXXX\0</ID></IDList>;
+	Option=1: <IDList><ID>XXXXXXX\0</ID><Date>YYYY/MM/DD,HH:MM:SS</Date></IDList>;
+5、Change Session:
+	<KEY>XXXXXXXXXXXXXXXX</KEY><KEY>XXXXXXXXXXXXXXXX</KEY>;
+6、Get Offline Message:
+	0bytes;
+7、Set Offline Message:
+	Max 5+32+6=43bytes: <Msg>X(x31)\0</Msg>;
+}

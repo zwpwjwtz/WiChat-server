@@ -1,0 +1,32 @@
+Comm.dat
+====Header====			32bytes Fixed
+WiChatCD			8bytes DB Type
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time
+X				1byte Server ID
+X				1byte DB Version
+XX				2byte Record Number
+
+====Record Area====			64bytes Per Record
+XXXXXXX\0					Max 8bytes ID
+XXXXXXXXXXXXXXX				16bytes Communication Key
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time & updater ID
+X(x20)						20bytes Reserved
+
+
+Rec.dat
+====Header====			32bytes Fixed
+WiChatDD			8bytes DB Type
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time
+X				1byte Server ID
+X				1byte DB Version
+XX				2byte Record Number
+
+====Record Area====		64bytes Per Record
+XXXXXXXX\0			Max 8bytes Sender ID
+XXXXXXXX\0			Max 8bytes Receptor ID
+X				1bytes Current State (0 indicates expired)
+X				1byte Record Type
+XXXX				4bytes Resource Length
+XXXXXXXXXXXXXXXX		16bytes Resource ID
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time & updater ID
+X(x6)				6bytes Reserved

@@ -1,0 +1,771 @@
+<?php
+if (!defined('RESPONSE_HEADER')) exit(0);
+require_once(dirname(__FILE__).'/../common/config.php');
+
+function checkKey($str,$fixedLen=0)
+{
+	if (!$str) return false;
+	if ($fixedLen>0 && strlen($str)!=$fixedLen) return false;
+	return true;
+}
+function checkID($str) //For un-encoded ID only.
+{
+	if (!$str) return false;
+	for($i=0;$i<strlen($str);$i++) {if ($str[$i]==chr(0)) break;}
+	if ($i<1 || $i>7) return false;
+	for($i=0;$i<$p;$i++)
+	{
+		$ch=$str[$i]; 
+		if ($ch<'0' || $ch>'9') return false;
+	}
+	return true;
+}
+function intToBytes($value) // 2 bytes
+{
+	if ($value>65535) $value=$value%65536;
+	return chr($value % 256).chr((int) $value/256);
+}
+function bytesToInt($value) // 2 bytes
+{
+	if (count($value)<1) return ord($value[0]);
+	else return ord($value[0])+256*ord($value[1]);
+}
+function stringsToInts($value)
+{
+	if ($value==NULL) return NULL;
+	else if (count($value)==1) return (int)$value;
+	else
+	{
+		$temp=array();
+		foreach ($value as $item) array_push($temp,(int)$item);
+		return $temp;
+	}
+}
+function timeDiff($time1,$time2='') // Return: Long
+{
+	define('TIME_REG','/^([0-9]{4})\/([0-1][0-9])\/([0-3][0-9]),([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/');
+	if (!(preg_match(TIME_REG,$time1,$timeArray1)==1 && ($timeArray1=stringsToInts($timeArray1))!=NULL && checkdate($timeArray1[2],$timeArray1[3],$timeArray1[1]))) return 0;
+	if ($time2=='')	return time()-mktime($timeArray1[4],$timeArray1[5],$timeArray1[6],$timeArray1[2],$timeArray1[3],$timeArray1[1]);
+	else
+	{
+		if (!(preg_match(TIME_REG,$time2,$timeArray2)==1 && ($timeArray2=stringsToInts($timeArray2))!=NULL && checkdate($timeArray2[2],$timeArray2[3],$timeArray2[1]))) return 0;
+		else return mktime($timeArray1[4],$timeArray1[5],$timeArray1[6],$timeArray1[2],$timeArray1[3],$timeArray1[1])-mktime($timeArray2[4],$timeArray2[5],$timeArray2[6],$timeArray2[2],$timeArray2[3],$timeArray2[1]);
+	}
+}
+
+class loginRecord
+{
+	public $ID,$ID_Encoded,$Key,$LastTime; //String; $LastTime includes SERVER_ID
+	public $Device; //Int
+}
+class accRecord
+{
+	public $ID,$LastTime,$Session; //String; $LastTime includes SERVER_ID
+	public $State,$LastDevice; //Int
+	public $Msg; //String
+}
+class DB
+{
+	public $OK; //Bool
+	private $defaultDB='/../db/db.dat',$dbPrefix='WiChatDD'; //String
+	protected $db=''; //String
+	private $Ver=1; //Int
+	private $nowPointer;
+	function __construct($dbFile)
+	{
+		$this->OK=false;
+		if (!$dbFile) $dbFile=dirname(__FILE__).$this->$defaultDB;
+		if (!file_exists($dbFile))
+		{
+			$f=fopen($dbFile,'wb');
+			if (!$f) return;
+			flock($f,LOCK_EX);
+			fwrite($f,$this->dbPrefix);
+			fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID));
+			fwrite($f,chr(SERVER_ID));
+			fwrite($f,chr($this->Ver));
+			fwrite($f,chr(0).chr(0));
+			flock($f,LOCK_UN);
+			fclose($f);
+		}
+		else
+		{
+			$f=fopen($dbFile,'rb');
+			if (!$f) return; 
+			if (fread($f,8)!=$this->dbPrefix) return;
+			fseek($f,29);
+			$ver=ord(fread($f,1));
+			fclose($f);
+			if ($ver!=$this->Ver) return;
+		}
+		$this->db=$dbFile;
+		$this->OK=true;
+	}
+	public function count() //Return:Int; <0 Indicating error
+	{
+		if (!$this->sync()) return -1;
+		$f=fopen($this->db,'rb');
+		fseek($f,30);
+		$temp=fread($f,2);
+		fclose($f);
+		return bytesToInt($temp);
+	}
+	protected static function _count($f) //Return:Int; <0 Indicating error; Permission of 'rb' required
+	{
+		$p=ftell($f);
+		fseek($f,30);
+		$temp=fread($f,2);
+		fseek($f,$p);
+		return bytesToInt($temp);
+	}
+	protected static function _inc($f) //Return:Bool; Permission of 'rb+'required
+	{
+		$p=ftell($f);
+		fseek($f,30);
+		$temp=bytesToInt(fread($f,2));
+		if ($temp<65536) $temp+=1; else return false;
+		fseek($f,30);
+		fwrite($f,intToBytes($temp));
+		fseek($f,$p);
+		return true;
+	}
+	protected static function _dec($f) //Return:Bool; Permission of 'rb+'required
+	{
+		$p=ftell($f);
+		fseek($f,30);
+		$temp=bytesToInt(fread($f,2));
+		if ($temp>0) $temp-=1; else return false;
+		fseek($f,30);
+		fwrite($f,intToBytes($temp));
+		fseek($f,$p);
+		return true;
+	}
+	protected function sync()
+	{
+		return true;
+	}
+	protected static function update($f) //Permission of 'rb+'required
+	{	
+		fseek($f,8);
+		fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID));
+	}	
+}
+
+class loginDB extends DB
+{
+	private $defaultDB='/../db/login.dat',$dbPrefix='WiChatLD';
+	private $Ver=1;
+	
+	public function existRecord($ID,$encoded)
+	{
+		if (!checkID($ID)) return false;
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb');
+		if (self::_count($f)<1) {fclose($f); return false;}
+		fseek($f,32);
+		$temp='';
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($encoded==false && $temp==$ID) break;
+			$temp=fread($f,8);
+			if ($encoded==true && $temp==$ID) break;
+			if (feof($f)) break;				
+			fseek($f,48,SEEK_CUR);
+		}
+		fclose($f);
+		if ($temp==$ID) return true; else return false;		
+	}
+	public function getRecord($ID,$encoded)
+	{
+		if ($encoded && !checkID($ID)) return NULL;
+		if (!$this->sync()) return NULL;
+		$f=fopen($this->db,'rb');
+		if (self::_count($f)>0)
+		{
+			fseek($f,32);
+			$temp='';$temp2='';
+			while(true)
+			{
+					$temp=fread($f,8);
+					$temp2=fread($f,8);
+					if ($encoded && $temp2==$ID || !$encoded && $temp==$ID) break;
+					if (feof($f)) break;
+					fseek($f,48,SEEK_CUR);
+			}
+			if (!$encoded && $temp!=$ID || $encoded && $temp2!=$ID) {fclose($f); return NULL;}
+		}
+		$tempRecord=new loginRecord();
+		$tempRecord->ID=$temp; $tempRecord->ID_Encoded=$temp2;
+		$temp=fread($f,16);	$tempRecord->Key=$temp;
+		$temp=fread($f,20);	$tempRecord->LastTime=substr($temp,0,19);
+		$temp=fread($f,1);	$tempRecord->Device=ord($temp);		
+		fclose($f);		
+		return $tempRecord;			
+	}
+	
+	public function setRecord($record) //Return:Bool
+	{
+		if (!(checkID($record->ID) && checkKey($record->ID_Encoded,ACCOUNT_ID_MAXLEN))) return false;
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		$temp='';
+		if (self::_count($f)>0)
+		{
+			fseek($f,32);
+			while(true)
+			{
+				$temp=fread($f,8);
+				if ($temp==$record->ID) break;
+				if (feof($f)) break;
+				fseek($f,56,SEEK_CUR);
+			}
+		}
+		if ($temp!=$record->ID) 
+		{
+			if (!self::_inc($f)) {flock($f,LOCK_UN); fclose($f); return false;}
+			fseek($f,0,SEEK_END);
+			fwrite($f,$record->ID.str_repeat(chr(0),8-strlen($record->ID)));
+		}
+		fwrite($f,$record->ID_Encoded.$record->Key.gmdate(TIME_FORMAT).chr(SERVER_ID).chr($record->Device).str_repeat(chr(0),11));		
+		self::update($f);	
+		flock($f,LOCK_UN);
+		fclose($f);
+		
+		return true;		
+	}
+}
+
+class accDB extends DB
+{
+	
+	private $defaultDB='/../db/account.dat',$dbPrefix='WiChatDD';
+	private $Ver=1;
+	
+	public function existRecord($ID) //Return:Bool
+	{
+		if (!$this->sync()) return NULL;
+		$f=fopen($this->db,'rb');
+		if (self::_count($f)<1) {fclose($f);return false;}
+		fseek($f,32);
+		$temp=''; 
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,120,SEEK_CUR);
+		}
+		fclose($f);
+		if ($temp==$ID) return true; else return false;
+	}
+	public function getRecord($ID) //Return:class accRecord
+	{
+		if (!$this->sync()) return NULL;
+		$f=fopen($this->db,'rb');
+		//if (self::_count($f)<1) {fclose($f);return NULL;}
+		fseek($f,32);
+		$temp=''; 
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,120,SEEK_CUR);
+		}
+		if ($temp!=$ID) {fclose($f);return NULL;}
+		$rec=new accRecord;
+		$rec->ID=$temp;
+		fseek($f,16,SEEK_CUR);
+		$temp=fread($f,20);		$rec->LastTime=substr($temp,0,19);
+		$temp=fread($f,16);		$rec->Session=$temp;
+		$temp=fread($f,1);		$rec->State=ord($temp);
+		$temp=fread($f,1);		$rec->LastDevice=ord($temp);
+		$temp=fread($f,64);		$rec->Msg=$temp;
+		fclose($f);
+		return $rec;		
+	}
+	public function setRecord($record) //Return:Bool
+	{
+		if (!$record) return false;
+		if (!(checkID($record->ID) && checkKey($record->Session,16))) return false; //Necessary Requirement
+		if (!$this->sync()) return false;
+		$record->Msg=substr($record->Msg,0,64);
+				
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		$temp='';
+		fseek($f,32);
+		while(true)
+		{
+				$temp=fread($f,8);
+				if ($temp==$record->ID) break;
+				if (feof($f)) break;
+				fseek($f,120,SEEK_CUR);
+		}
+		if ($temp!=$record->ID) 
+		{
+			if (!self::_inc($f)) {flock($f,LOCK_UN); fclose($f); return false;}
+			fseek($f,-8,SEEK_CUR);
+			fwrite($f,$record->ID.str_repeat(chr(0),128-strlen($record->ID)));
+			fseek($f,-120,SEEK_CUR);
+		}		
+		fseek($f,16,SEEK_CUR);
+		fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID).$record->Session.chr($record->State).chr($record->LastDevice).$record->Msg);
+		self::update($f);
+		flock($f,LOCK_UN);
+		fclose($f);
+		
+		return true;
+		
+	}
+	/*Temporarily unused
+	public function	delRecord($ID) //Return:Bool
+	{
+		if (!checkID($ID)) return false;
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb+');
+		//if (self::_count($f)<1) {fclose($f);return false;}
+		flock($f,LOCK_EX);
+		fseek($f,32);
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,128,SEEK_CUR);
+		}
+		if ($temp==$ID) 
+			if (self::_dec($f))
+			{
+				fwrite($f,KEY_NULL.gmdate(TIME_FORMAT).chr(SERVER_ID).KEY_NULL.chr(0).chr(0).str_repeat(chr(0),64)); //ID Information Reserved
+				self::update($f);
+				flock($f,LOCK_UN);
+				fclose($f);
+				return true;				
+			}
+		flock($f,LOCK_UN);
+		fclose($f); 
+		return false;	
+	}
+	*/
+	public function verify($ID,$Password) //Return:Bool
+	{
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb');
+		//if (self::_count($f)<1) {fclose($f);return false;}
+		fseek($f,32);
+		$temp='';
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,120,SEEK_CUR);
+		}
+		if ($temp!=$ID) {fclose($f);return false;}
+		$temp=fread($f,16);
+		fclose($f);
+		if (substr(sha1($Password,true),4,16)==$temp) return true; else return false;
+	}
+	public function setPW($ID,$PasswordOld,$PasswordNew) //Return:Bool
+	{
+		if (!$this->sync()) return false;
+		if (!$this->verify($ID,$PasswordOld)) return false;
+		$f=fopen($this->db,'rb+');
+		//if (self::_count($f)<1) {fclose($f);return false;}
+		fseek($f,32);
+		$temp='';
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,120,SEEK_CUR);
+		}
+		if ($temp!=$ID) {fclose($f);return false;}
+		fwrite($f,substr(sha1($PasswordNew,true),4,16),16);
+		fclose($f);
+		return true;
+	}
+	public function getState($ID) // Return:Int; <0 indicating error
+	{
+		if (!$this->sync()) return -1;
+		$f=fopen($this->db,'rb');
+		//if (self::_count($f)<1) {fclose($f);return ACCOUNT_STATE_DEFAULT;}
+		fseek($f,32);
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,120,SEEK_CUR);
+		}
+		if ($temp==$ID) 
+		{
+			fseek($f,52,SEEK_CUR);
+			$temp=fread($f,1);
+			fclose($f);
+			return ord($temp);	
+		}
+		else
+		{
+			fclose($f);
+			return ACCOUNT_STATE_DEFAULT;
+		}				
+	}
+	public function setState($ID,$newState) // Return:Int; <0 indicating error
+	{
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb+');
+		//if (self::_count($f)<1) {fclose($f);return -1;}
+		flock($f,LOCK_EX);
+		fseek($f,32);
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,120,SEEK_CUR);
+		}
+		if ($temp!=$ID) {flock($f,LOCK_UN); fclose($f); return -1;}
+		fseek($f,52,SEEK_CUR);
+		fwrite($f,chr($newState),1);
+		flock($f,LOCK_UN);
+		self::update($f);
+		fclose($f);
+		return $newState;			
+	}
+	/*Temporarily unused
+	public function getSession($id) // Return:string 
+	{
+		if (!$this->sync()) return '';
+		$f=fopen($this->db,'rb');
+		//if (self::_count($f)<1) {fclose($f); return KEY_NULL;}
+		fseek($f,32);
+		$temp='';
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,120,SEEK_CUR);
+		}
+		if ($temp!=$ID){fclose($f); return KEY_NULL;}
+		fseek($f,36,SEEK_CUR);
+		$temp=fread($f,16);
+		fclose($f);
+		return $temp;
+	}
+	*/
+	public function setSession($ID,$newKey) // Return:Bool
+	{
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb+');
+		//if (self::_count($f)<1) {fclose($f); return false;}
+		flock($f,LOCK_EX);
+		fseek($f,32);
+		$temp=fread($f,8);
+		while(true)
+		{
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,120,SEEK_CUR);
+			$temp=fread($f,8);
+		}
+		if ($temp!=$ID) {flock($f,LOCK_UN); fclose($f); return false;}
+		fseek($f,36,SEEK_CUR);
+		fwrite($f,$newKey,16);
+		flock($f,LOCK_UN);
+		self::update($f);
+		fclose($f);
+		return true;
+		
+	}
+	public function getIDBySession($key) //Return:String
+	{
+		if (!$this->sync()) return '';
+		$f=fopen($this->db,'rb');
+		//if (self::_count($f)<1) {fclose($f); return '';}
+		fseek($f,76);
+		$temp=fread($f,16);
+		while(true)
+		{
+			if ($temp==$key) break;
+			if (feof($f)) break;
+			fseek($f,112,SEEK_CUR);
+			$temp=fread($f,16);
+		}
+		if ($temp==$key)
+		{
+			fseek($f,-60,SEEK_CUR);
+			$temp=fread($f,8);
+			fclose($f);
+			return $temp;
+		}
+		else
+		{
+			fclose($f);
+			return '';
+		}
+	}
+
+}
+
+class commDB extends DB
+{
+	private $defaultDB='/../db/comm.dat',$dbPrefix='WiChatCD';
+	private $Ver=1;
+	
+	public function getKey($ID) //Return:String
+	{
+		if (!checkID($ID)) return false;
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb');
+		fseek($f,32);
+		$temp='';
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,56,SEEK_CUR);
+		}
+		if ($temp!=$ID) {fclose($f); return '';}
+		$temp=fread($f,16);
+		fclose($f);		
+		return $temp;			
+	}
+	public function setKey($ID,$Key) //Return:Bool
+	{
+		if (!(checkID($ID) && checkKey($Key,16))) return false;
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		$temp='';
+		fseek($f,32);
+		while(true)
+		{
+			$temp=fread($f,8);
+			if ($temp==$ID) break;
+			if (feof($f)) break;
+			fseek($f,56,SEEK_CUR);
+		}
+		if ($temp!=$ID) 
+		{
+			if (!self::_inc($f)) {flock($f,LOCK_UN); fclose($f); return false;}
+			fseek($f,0,SEEK_END);
+			fwrite($f,$ID.str_repeat(chr(0),8-strlen($ID)));
+		}
+		fwrite($f,$Key.gmdate(TIME_FORMAT).chr(SERVER_ID).str_repeat(chr(0),20));
+		flock($f,LOCK_UN);
+		fclose($f);	
+		return true;		
+	}
+}
+
+class relDB extends DB
+{
+	private $defaultDB='/../db/relation.dat',$dbPrefix='WiChatRD';
+	private $Ver=1;
+	
+	public function getFriend($ID,$state=RELATION_STATE_ESTABLISHED) // Return: Array of Strings
+	{
+		if (!checkID($ID)) return false;
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb');
+		$group=array();
+		
+		$temp1='';$temp2='';
+		fseek($f,32);
+		while(true)
+		{
+			$temp1=fread($f,8);
+			$temp2=fread($f,8);
+			if (feof($f)) break;
+			if ($temp1!=$ID && $temp2!=$ID) {fseek($f,112,SEEK_CUR); continue;}
+			fseek($f,20,SEEK_CUR);
+			if (fread($f,1)==chr($state))
+			switch($state)
+			{
+				case RELATION_STATE_ESTABLISHED:
+					if ($temp1==$ID) array_push($group,$temp2);
+					else array_push($group,$temp1);
+					break;	
+				case RELATION_STATE_BREAKING:
+					$deleter=ord(fread($f,1));
+					if ($deleter==1) {if ($temp2==$ID) array_push($group,$temp1);}
+					else {if ($temp1==$ID) array_push($group,$temp2);}
+					fseek($f,-1,SEEK_CUR);
+					break;
+				case RELATION_STATE_WAITING:
+					if ($ID==$temp1) continue; else array_push($group,$temp1);
+					break;					
+			}
+			fseek($f,91,SEEK_CUR);
+		}
+		fclose($f);
+		return $group;
+	}
+	public function getFriendDate($person1,$person2) //Return: String
+	{
+		if (!(checkID($person1) && checkID($person1))) return '';
+		if (!$this->sync()) return '';
+		$temp='';
+		$f=fopen($this->db,'rb');
+		$temp1='';$temp2='';
+		fseek($f,32);
+		while(true)
+		{
+			$temp1=fread($f,8);
+			$temp2=fread($f,8);
+			if ($temp1==$person1 && $temp2==$person2 || $temp2==$person1 && $temp1==$person2)
+			{
+				$temp=substr(fread($f,20),0,19);
+				if (fread($f,1)!=chr(RELATION_STATE_ESTABLISHED)) $temp='';
+				break;
+			}
+			if (feof($f)) break;
+			fseek($f,112,SEEK_CUR);
+		}
+		fclose($f);
+		return $temp;
+	}
+	public function setFriend($inviter,$invited) // Return: Bool
+	{
+		if (!(checkID($inviter) && checkID($inviter))) return false;
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		fseek($f,32);
+		while(true)
+		{
+			$temp1=fread($f,8);
+			$temp2=fread($f,8);
+			if ($temp1==$inviter && $temp2==$invited || $temp2==$inviter && $temp1==$invited)	break;
+			if (feof($f)) break;
+			fseek($f,112,SEEK_CUR);
+		}
+		if (feof($f))	
+		{
+			if (!self::_inc($f)) {flock($f,LOCK_UN); fclose($f); return false;}
+			fwrite($f,str_repeat(chr(0),8-strlen($inviter)).$inviter.str_repeat(chr(0),8-strlen($invited)).$invited.gmdate(TIME_FORMAT).chr(SERVER_ID).chr(RELATION_STATE_WAITING).str_repeat(chr(0),91));
+		}
+		else
+		{
+			fseek($f,20,SEEK_CUR);
+			if (fread($f,1)==chr(RELATION_STATE_WAITING))
+			{
+				if ($inviter!=$temp1)
+				{
+					fseek($f,-21,SEEK_CUR);
+					fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID).chr(RELATION_STATE_ESTABLISHED));
+				}
+			}
+			else 
+			{
+				fseek($f,-37,SEEK_CUR);
+				fwrite($f,$inviter.$invited.gmdate(TIME_FORMAT).chr(SERVER_ID).chr(RELATION_STATE_WAITING));
+			}
+		}
+		flock($f,LOCK_UN);
+		fclose($f);
+		return true;		
+	}
+	public function delFriend($deleter,$deleted) //Return: Bool
+	{
+		if (!(checkID($deleter) && checkID($deleted))) return false;
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		fseek($f,32);
+		while(true)
+		{
+			$temp1=fread($f,8);
+			$temp2=fread($f,8);
+			if ($temp1==$deleter && $temp2==$deleted || $temp2==$deleter && $temp1==$deleted)	break;
+			if (feof($f)) break;
+			fseek($f,112,SEEK_CUR);
+		}
+		if (feof($f))
+		{	
+			flock($f,LOCK_UN);
+			fclose($f);
+			return false;
+		}	
+		else
+		{
+			fseek($f,20,SEEK_CUR);
+			$state=ord(fread($f,1));
+			fseek($f,-21,SEEK_CUR);
+			switch($state)
+			{
+				case RELATION_STATE_ESTABLISHED:
+					fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID).chr(RELATION_STATE_BREAKING).chr($deleter==$temp1?1:2)); break;
+				case RELATION_STATE_BREAKING:
+					fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID).chr(RELATION_STATE_NONE).str_repeat(chr(0),91)); break;
+				case RELATION_STATE_WAITING:
+					fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID).chr(RELATION_STATE_NONE)); break;
+			}
+			flock($f,LOCK_UN);
+			fclose($f);
+			return true;
+		}
+	}
+	public function getNote($noter,$noted) //Return:String
+	{
+		if (!(checkID($noter) && checkID($noted))) return '';
+		if (!$this->sync()) return '';
+		$temp='';
+		$f=fopen($this->db,'rb');
+		$temp1='';$temp2='';
+		fseek($f,32);
+		while(true)
+		{
+			$temp1=fread($f,8);
+			$temp2=fread($f,8);
+			if ($temp1==$noter && $temp2==$noted || $temp2==$noter && $temp1==$noted)
+			{
+				fseek($f,20,SEEK_CUR);
+				if (fread($f,1)!=chr(RELATION_STATE_ESTABLISHED)) {$temp='';break;}
+				if ($temp1==$noter)	fseek($f,1,SEEK_CUR); else	fseek($f,33,SEEK_CUR);		
+				$temp=fread($f,32);
+				break;
+			}
+			if (feof($f)) break;
+			fseek($f,112,SEEK_CUR);
+		}
+		fclose($f);
+		return $temp;
+	}
+	public function setNote($noter,$noted,$notation) //Return:Bool
+	{
+		if (!(checkID($noter) && checkID($noted))) return '';
+		if (!$this->sync()) return '';
+		$temp='';
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		$temp1='';$temp2='';
+		fseek($f,32);
+		while(true)
+		{
+			$temp1=fread($f,8);
+			$temp2=fread($f,8);
+			if ($temp1==$noter && $temp2==$noted || $temp2==$noter && $temp1==$noted)
+			{
+				fseek($f,20,SEEK_CUR);
+				if (fread($f,1)!=chr(RELATION_STATE_ESTABLISHED)){flock($f,LOCK_UN);fclose($f);return false;}
+				if ($temp1==$noter) fseek($f,1,SEEK_CUR); else fseek($f,33,SEEK_CUR);
+				fwrite($f,$notation,32);				
+				break;
+			}
+			if (feof($f)) {flock($f,LOCK_UN);fclose($f);return false;}
+			fseek($f,112,SEEK_CUR);
+		}
+		flock($f,LOCK_UN);
+		fclose($f);
+		return true;
+	}
+}	
+?>

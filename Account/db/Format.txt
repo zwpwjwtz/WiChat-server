@@ -1,0 +1,74 @@
+Login.dat:
+
+====Header====			32bytes Fixed
+WiChatLD			8bytes DB Type
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time
+X				1byte Server ID
+X				1byte DB Version
+XX				2byte Record Number
+
+====Record Area====		64 bytes Per Record
+XXXXXXXX			8bytes ID
+XXXXXXXX			8bytes ID(Encoded)
+XXXXXXXXXXXXXXXX		16bytes Key
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time (of Comm. Key)
+X				1bytes Device Type
+X(x11)				11 bytes Reserved
+
+
+
+
+Account.dat:
+====Header====			32bytes Fixed
+WiChatAD			8bytes DB Type
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time
+X				1byte Server ID
+X				1byte DB Version
+XX				2byte Record Number
+
+====Record Area====		128bytes Per Record
+XXXXXXX\0			Max 8bytes ID
+XXXXXXXXXXXXXXX			16bytes Password(Encoded)
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Login Time & updater ID
+XXXXXXXXXXXXXXX			16bytes Session ID
+X				1byte Current State
+X				1byte Last Device Type
+X(x64)				Max 64byte Offline Msg
+X(x2)				2bytes Reserved
+
+
+
+Comm.dat
+====Header====			32bytes Fixed
+WiChatCD			8bytes DB Type
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time
+X				1byte Server ID
+X				1byte DB Version
+XX				2byte Record Number
+
+====Record Area====		64bytes Per Record
+XXXXXXX\0			Max 8bytes ID
+XXXXXXXXXXXXXXX			16bytes Communication Key
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time & updater ID
+X(x20)				20bytes Reserved
+
+
+
+
+Relation.dat
+====Header====			32bytes Fixed
+WiChatRD			8bytes DB Type
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time
+X				1byte Server ID
+X				1byte DB Version
+XX				2byte Record Number
+
+====Record Area====		128bytes Per Record
+XXXXXXX\0			Max 8bytes ID Invitor
+XXXXXXX\0			Max 8bytes ID Invited
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Verifying Time
+X					Current State
+X					Breaking State
+X(x32)				32bytes Mark of Invited by Invitor
+X(x32)				32bytes Mark of Invitor by Invited
+X(x27)				26bytes Reserved
