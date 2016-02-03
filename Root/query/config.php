@@ -23,9 +23,9 @@ define('RESPONSE_DATE_EXPIRED',7);
 define('RESPONSE_IN_MAINTANANCE',8);
 
 define('ROOT_SERVER',' dns.wichat.org/Root/');
-$AccServer=array('127.0.0.1.');
+$AccServer=array('127.0.0.1');
 //$AccServer=array('acc2.wichat.org');
-$RecServer=array('127.0.0.1.');
+$RecServer=array('127.0.0.1');
 //$RecServer=array('rec1.wichat.org');
 
 $validVersion=array(1,2,3,4,255);

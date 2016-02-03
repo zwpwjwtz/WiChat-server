@@ -16,29 +16,29 @@ else
 	else
 	{
 		if (!in_array(ord(substr($buffer,QUERY_HEADER_LEN,1)),$validVersion)) $out.=chr(RESPONSE_DEVICE_UNSUPPORTED);
-		else switch(ord(substr($buffer,QUERY_HEADER_LEN+1,1)))
+		else
 		{
-			case QUERY_TYPE_NONE:
-				if (false) $out.=chr(RESPONSE_BUSY).chr(0);
-				else $out.=chr(RESPONSE_SUCCESS).chr(0);
-				break;
-			case QUERY_TYPE_GET_ACC:
-				if (false) $out.=chr(RESPONSE_BUSY).chr(0);
-				else 
+			$option=ord(substr($buffer,QUERY_HEADER_LEN+1,1));
+			if ($option==QUERY_TYPE_NONE)
+				$out.=chr(RESPONSE_SUCCESS).chr(0);
+			else
+			{
+				$serverList='';
+				if ($option & QUERY_TYPE_GET_ACC)
 				{
-					$out.=chr(RESPONSE_SUCCESS).chr(count($AccServer));
-					foreach ($AccServer as $item) $out.=$item.chr(0);
+					$serverList.=chr(RESPONSE_SUCCESS).chr(count($AccServer));
+					foreach ($AccServer as $item) $serverList.=$item.chr(0);
 				}
-				break;
-			case QUERY_TYPE_GET_REC:
-				if (false) $out.=chr(RESPONSE_BUSY).chr(0);
-				else 
+				if ($option & QUERY_TYPE_GET_REC) 
 				{
-					$out.=chr(RESPONSE_SUCCESS).chr(count($RecServer));
-					foreach ($RecServer as $item) $out.=$item.chr(0);
+					$serverList.=chr(RESPONSE_SUCCESS).chr(count($RecServer));
+					foreach ($RecServer as $item) $serverList.=$item.chr(0);
 				}
-				break;
-			default: $out.=chr(RESPONSE_INVALID);
+				if ($serverList=='')
+					$out.=chr(RESPONSE_INVALID);
+				else
+					$out.=$serverList;
+			}
 		}
 	}
 }
