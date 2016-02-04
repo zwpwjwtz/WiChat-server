@@ -150,7 +150,7 @@ class CSC1
 	{
 		return self::rotate_R(self::reflect_R($number, $mixedVar), $mixedVar);
 	}
-	private function shift($number, $digit) //As String
+	private static function shift($number, $digit) //As String
 	{
 		$l=strlen($number);
 		if ($digit >= 0)
@@ -196,32 +196,18 @@ class CSC1
 		return;
 	}
 	public function encrypt($value,$key) //Return:String
-	{
-		$keyArray=self::buildKey($key);
+		$length = strlen($value);
+		if ($length > self::MaxFileBlock) return null;
+		$keyArray = self::buildKey($key);
 		if (!$keyArray) return null;
-		$fileEnd=false;
+		$kl = count($keyArray); $pK = 2;
+		$tempByte = 0; $tempChar = '';
+		$bufferOut = str_repeat("\0",(int)(($length - 1) * 1.25) + 2);
 
-  		$kl = count($keyArray);
-  		$pF = 0; $pK = 2;
-   		$tempByte = 0; $tempChar = '';
-   		$bufferOut=str_repeat("\0",(int)(self::MaxFileBlock * 1.25));
-  		while(!$fileEnd)
-  		{
-			if ($pF + self::MaxFileBlock < strlen($value))
-		    	{
-		        	 $bufferIn=substr($value,$pF,self::MaxFileBlock);
-		        	 $pF+=self::MaxFileBlock;
-		  	  }
-		    	else
-		    	{
-				$bufferIn=substr($value,$pF,strlen($value) - $pF);
-				$bufferOut=str_repeat("\0",(int)((strlen($value) - $pF - 1) * 1.25) + 2);
-				$fileEnd = true;
-			}
 			$pBO = 0;
-			for ($pBI = 0; $pBI< strlen($bufferIn); $pBI++)
+			for ($pBI = 0; $pBI < $length; $pBI++)
 			{
-				$tempChar = self::shift(sprintf('%03d',ord($bufferIn[$pBI])),$keyArray[$pK]+$keyArray[$pK+1]);
+				$tempChar = self::shift(sprintf('%03d',ord($value[$pBI])),$keyArray[$pK]+$keyArray[$pK+1]);
      			switch($keyArray[$pK])
     			{
     				case 0: $tempChar = self::rotate($tempChar, $keyArray[$pK+1]);break;
@@ -229,50 +215,37 @@ class CSC1
 					case 2: $tempChar = self::reflect($tempChar, $keyArray[$pK+1]);break;
 					case 3: $tempChar = self::rotoreflect($tempChar, $keyArray[$pK+1]);
 				}
-				$bufferOut[$pBO] = chr($tempByte * pow(4 , (4 - $pBI % 4) % 4) | (int)((int)$tempChar / pow(4 ,$pBI % 4 + 1)));
-     			$tempByte = (pow(4 , $pBI % 4 + 1) - 1) & (int)$tempChar;
-				$pK = ($pK + ord($bufferIn[$pBI])*2) % count($keyArray);
+				$bufferOut[$pBO] = chr($tempByte << (4 - $pBI % 4) % 4 * 2 | (int)$tempChar >> ($pBI % 4 + 1) * 2);
+				$tempByte = (1 << ($pBI % 4 + 1) * 2) - 1 & (int)$tempChar;
+				$pK = ($pK + ord($value[$pBI]) * 2) % $kl;
 				$pBO++;
-     			if ($pBO % 5 == 4)
+				if ($pBO % 5 == 4)
 				{
-					$bufferOut[$pBO] = chr($tempByte);
+					$bufferOut[$pBO++] = chr($tempByte);
 					$tempByte = 0;
-					$pBO++;
 				}
 			}
-   			if  ($pBI  % 4 > 0 && $pBO <= strlen($bufferOut)) $bufferOut[$pBO] = chr(pow(4 , 3 - ($pBI - 1) % 4) * $tempByte);
-     	}
+			if  ($pBO % 5 != 0) $bufferOut[$pBO] = chr($tempByte << (4 - $pBO % 5) * 2);
+
  		self::arrayReset($keyArray);
  		return $bufferOut;
 	}
 	public function decrypt($value,$key) // Return:String
 	{
-		$keyArray=self::buildKey($key);
+		$length = strlen($value);
+		if ($length > self::MaxFileBlock * 1.25) return null;
+		$keyArray = self::buildKey($key);
 		if (!$keyArray) return null;
-		$fileEnd=false;
-  		$kl = count($keyArray);
-  		$pF = 0; $pK = 2;
-  		$tempByte = 0; $tempChar = '';
-   		$bufferOut=str_repeat("\0",self::MaxFileBlock);
-		while(!$fileEnd)
-		{
-			if ($pF + self::MaxFileBlock * 1.25 < strlen($value))
-		 	{
-				$bufferIn=substr($value,$pF,self::MaxFileBlock * 1.25);
-				$pF += self::MaxFileBlock * 1.25;
-			}
-			else
-			{
-				$bufferIn=substr($value,$pF,strlen($value) - $pF);
-				$bufferOut=str_repeat("\0",(int)((strlen($value) - $pF + 4) / 1.25) - 3);
-				$fileEnd = true;
-			}
+		$kl = count($keyArray); $pK = 2;
+		$tempByte = 0; $tempChar = '';
+		$bufferOut = str_repeat("\0",(int)(($length + 4) / 1.25) - 3);
+
 			$pBO = 0;
-			for ($pBI = 0; $pBI<strlen($bufferIn)-1; $pBI++)
+			for ($pBI = 0; $pBI < $length - 1; $pBI++)
 			{
-				$tempVar = (ord($bufferIn[$pBI]) & pow(4 ,4 - $pBI % 5) - 1) * pow(4,($pBI + 1) % 5) | (int)(ord($bufferIn[$pBI + 1]) / pow(4 , 3 - $pBI % 5));
-     				$tempChar = self::shift(sprintf('%03d',$tempVar),-$keyArray[$pK]-$keyArray[$pK+1]);
-     				switch($keyArray[$pK])
+				$tempVar = (ord($value[$pBI]) & 0xFF >> $pBI % 5 * 2) << ($pBI % 5 + 1) * 2 | ord($value[$pBI + 1]) >> (3 - $pBI % 5) * 2;
+				$tempChar = self::shift(sprintf('%03d',$tempVar),-$keyArray[$pK]-$keyArray[$pK+1]);
+				switch($keyArray[$pK])
 				{
 					case 0: $tempChar = self::rotate_R($tempChar,$keyArray[$pK+1]); break;
 					case 1: $tempChar = self::invert_R($tempChar, $keyArray[$pK+1]); break;
@@ -280,11 +253,11 @@ class CSC1
 					case 3: $tempChar = self::rotoreflect_R($tempChar, $keyArray[$pK+1]);
 				}
 				$bufferOut[$pBO] = chr((int)$tempChar);
-				$pK = ($pK + ord($bufferOut[$pBO])*2) % count($keyArray);
+				$pK = ($pK + ord($bufferOut[$pBO]) * 2) % $kl;
     			$pBO++;
      			if($pBI % 5 == 3) $pBI++;
 			}
-		}
+
   		self::arrayReset($keyArray);
 	  	return $bufferOut;
 	}
