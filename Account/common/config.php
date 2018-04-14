@@ -33,8 +33,10 @@ define('ACCOUNT_ID_MAXLEN',8);
 define('ACCOUNT_ID_NULL',"\0\0\0\0\0\0\0\0");
 define('KEY_NULL','0000000000000000');
 define('ACCOUNT_KEY_LEN',16);
+define('ACCOUNT_KEY_SALTED_LEN',8);
 define('ACCOUNT_SESSION_LEN',16);
 define('ACCOUNT_COMMKEY_LEN',16);
+define('ACCOUNT_COMMRAND_LEN',4);
 define('ACCOUNT_ACTIVE_TIME',3600); //Time in second
 define('ACCOUNT_MAX_TRY_TIMES',3);
 
@@ -45,6 +47,6 @@ define('TIME_FORMAT','Y/m/d,H:i:s');
 define('TIME_LEN',19);
 define('TIME_ZERO','0001/01/01,00:00:00');
 
-$validVersion=array(3,4);
+$validVersion=array(255);
 // Constants and Absolute URLs Here ONLY
 ?>

@@ -14,39 +14,45 @@ else
 {
 	$Session=substr($buffer,QUERY_HEADER_LEN,ACCOUNT_SESSION_LEN);
 	include_once('../common/lib.php');
-	$db=new accDB2(ACCOUNT_LIST_CACHE);
+	include_once('../common/enc.php');
+	$db=new commDB(COMM_LIST);
 	$ID='';
 	if ($db->OK)
 	{
 		$ID=$db->getIDBySession($Session);
 		if ($ID<>'')
 		{
-			$tempRecord==$db->getRecord($ID);
+			// Get cached account record for this ID
+			$db2=new accDB2(ACCOUNT_LIST_CACHE);
+			$tempRecord=$db2->getRecord($ID);
 			if (timeDiff($tempRecord->LastTime)>MAX_SESSION_CACHE_TIME)
-				 $ID='';
-			else
-				if (!($tempRecord->State==ACCOUNT_STATE_ONLINE || $tempRecord->State==ACCOUNT_STATE_BUSY || $tempRecord->State==ACCOUNT_STATE_HIDE)) $ID='';
-		}
-		if ($ID=='')
-		{
-			$sf=file_get_contents('http://'.ACCOUNT_SERVER.'scomm/query.php?a='.ACCOUNT_SCOMM_ACTION_GET_ID_STATE.'&s='.$Session);
-			if (substr($sf,0,SERVER_RESPONSE_HEADER_LEN)==SERVER_RESPONSE_HEADER) 
 			{
-				include_once('../common/enc.php');
-				$encoder=new CSC1();
-				$content=$encoder->decrypt(substr($sf,SERVER_RESPONSE_HEADER_LEN+4),ACCOUNT_SCOMM_KEY);
-				if (substr($sf,SERVER_RESPONSE_HEADER_LEN,4)!=intTo4Bytes(crc32($content)) || $content[0]!=chr(RESPONSE_SUCCESS)) $out.=chr(RESPONSE_FAILED).chr(0); 
+				// Try to get a new record from the acccount server
+				include_once('../scomm/query.php');
+				include_once('../scomm/config.php');
+				$content=queryAccountServer(ACCOUNT_SCOMM_ACTION_GET_ID_STATE, $Session);
+				if ($content=='' || ord($content[0])!=RESPONSE_SUCCESS)
+				{
+					$out.=chr(RESPONSE_FAILED).chr(0);
+					$ID='';
+				}
 				else
 				{
+					// See if the account state is online or not
 					$state=ord($content[2+ACCOUNT_ID_MAXLEN]);
 					if (!($state==ACCOUNT_STATE_ONLINE || $state==ACCOUNT_STATE_BUSY || $state==ACCOUNT_STATE_HIDE)) $out.=chr(RESPONSE_NEED_LOGIN).chr(0); 
 					else
 					{
+						// Write new record to database
 						$ID=substr($content,2,ACCOUNT_ID_MAXLEN);
-						$db->setSession($ID,$Session);
-						$db->setState($ID,$state);
+						$db2->setState($ID,$state);
 					}
 				}
+			}
+			else
+			{
+				// See if the account state is online or not
+				if (!($tempRecord->State==ACCOUNT_STATE_ONLINE || $tempRecord->State==ACCOUNT_STATE_BUSY || $tempRecord->State==ACCOUNT_STATE_HIDE)) $ID='';
 			}
 		}
 	}
@@ -54,13 +60,11 @@ else
 		$out.=chr(RESPONSE_FAILED).chr(0); 
 	else
 	{
-		$db=new commDB(COMM_LIST);
-		if (!$db->OK || !($sessionKey=$db->getKey($ID))) $out.=chr(RESPONSE_FAILED).chr(0);
+		if (!($sessionKey=$db->getKey($ID))) $out.=chr(RESPONSE_FAILED).chr(0);
 		else
 		{	
-			include_once('../common/enc.php');
-			$content=$encoder->decrypt(substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN+4),$sessionKey);
-			if ($content==NULL || intTo4Bytes(crc32($content))!=substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN,4))  $out.=chr(RESPONSE_INVALID).chr(0);
+			$content=aes_decrypt(substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN+4),$sessionKey);
+			if ($content==NULL || intToBytes(crc32($content),4)!=substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN,4))  $out.=chr(RESPONSE_INVALID).chr(0);
 			else //Certification passed.
 			{
 				$outContent='';
@@ -83,7 +87,7 @@ else
 					default:
 						$outContent.=chr(RESPONSE_INVALID).chr(0);
 				}
-				$out.=intTo4Bytes(crc32($outContent)).$encoder->encrypt($outContent,$sessionKey);
+				$out.=intToBytes(crc32($outContent),4).aes_encrypt($outContent,$sessionKey);
 			}
 		}			
 	}

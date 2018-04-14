@@ -19,25 +19,24 @@ if (substr($buffer,0,QUERY_HEADER_LEN)!=QUERY_HEADER) $out.=chr(RESPONSE_INVALID
 else
 {
 	include_once('../common/lib.php');
-	$db=new accDB(ACCOUNT_LIST);	
-	if (!$db->OK) $out.=chr(RESPONSE_FAILED).chr(0);
+	$db2=new commDB(COMM_LIST);	
+	if (!$db2->OK) $out.=chr(RESPONSE_FAILED).chr(0);
 	else 
 	{
 		$Session=substr($buffer,QUERY_HEADER_LEN,ACCOUNT_SESSION_LEN);
-		$ID=$db->getIDBySession($Session);
+		$ID=$db2->getIDBySession($Session);
 		if (!$ID) $out.=chr(RESPONSE_FAILED).chr(0);
 		else 
 		{
-			$db2=new commDB(COMM_LIST);
-			if (!$db2->OK || !($sessionKey=$db2->getKey($ID))) $out.=chr(RESPONSE_FAILED).chr(0);
+			if (!($sessionKey=$db2->getKey($ID))) $out.=chr(RESPONSE_FAILED).chr(0);
 			else
 			{
 				include_once('../common/enc.php');
-				$encoder=new CSC1();
-				$content=$encoder->decrypt(substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN+4),$sessionKey);
-				if ($content==NULL || intTo4Bytes(crc32($content))!=substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN,4))  $out.=chr(RESPONSE_INVALID).chr(0);
+				$content=aes_decrypt(substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN+4),$sessionKey);
+				if ($content==NULL || intToBytes(crc32($content),4)!=substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN,4))  $out.=chr(RESPONSE_INVALID).chr(0);
 				else //Certification passed.
 				{
+					$db=new accDB(ACCOUNT_LIST);
 					$outContent='';
 					$action=ord(substr($content,0,1));
 					$option=ord(substr($content,1,1));
@@ -131,14 +130,14 @@ else
 							for ($i=0;$i<ACCOUNT_MAX_TRY_TIMES;$i++)
 							{
 								$newSession=genKey(ACCOUNT_SESSION_LEN);
-								if($db->getIDBySession($newSession)=='') {$found=true; break;}
+								if($db2->getIDBySession($newSession)=='') {$found=true; break;}
 							}
 							if (!$found) {$outContent.=chr(RESPONSE_FAILED).chr(0); break;}
-							if (!$db->setSession($ID,$newSession)) {$outContent.=chr(RESPONSE_FAILED).chr(0); break;}
-							if (!$db2->setKey($ID,encode($newSession,$sessionKey,ACCOUNT_COMMKEY_LEN,true)))
+							$newKey=genKey(ACCOUNT_COMMKEY_LEN);
+							if (!$db2->setSession($ID,$newSession,$newKey))
 								$outContent.=chr(RESPONSE_FAILED).chr(0);
 							else
-								$outContent.=chr(RESPONSE_SUCCESS).$newSession;
+								$outContent.=chr(RESPONSE_SUCCESS).chr(0).$newSession.$newKey;
 							break;
 						case ACCOUNT_ACTION_INFO_MSG_GET:
 							$tempRecord=$db->getRecord($ID);
@@ -198,7 +197,7 @@ else
 							$outContent.='</MList>';
 							break;
 						case ACCOUNT_ACTION_FRI_SETNOTE:
-							$noteLength=bytesToInt(substr($content,8,2));
+							$noteLength=bytesToInt(substr($content,8,2),2);
 							if ($noteLength>32) {$outContent.=chr(RESPONSE_INVALID).chr(0); break;}
 							$db3=new relDB(RELATION_LIST);
 							if (!$db3->OK) {$outContent.=chr(RESPONSE_FAILED).chr(0); break;}
@@ -210,7 +209,7 @@ else
 						default:
 							$outContent.=chr(RESPONSE_INVALID).chr(0);
 					}
-					$out.=intTo4Bytes(crc32($outContent)).$encoder->encrypt($outContent,$sessionKey);
+					$out.=intToBytes(crc32($outContent),4).aes_encrypt($outContent,$sessionKey);
 				}
 			}			
 		}

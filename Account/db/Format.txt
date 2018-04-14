@@ -28,9 +28,9 @@ XX				2byte Record Number
 
 ====Record Area====		128bytes Per Record
 XXXXXXX\0			Max 8bytes ID
-XXXXXXXXXXXXXXX			16bytes Password(Encoded)
+XXXXXXXXXXXXXXX			16bytes Password(Hashed)
 YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Login Time & updater ID
-XXXXXXXXXXXXXXX			16bytes Session ID
+XXXXXXXX			16bytes Password(Hashed with salt)
 X				1byte Current State
 X				1byte Last Device Type
 X(x64)				Max 64byte Offline Msg
@@ -50,7 +50,8 @@ XX				2byte Record Number
 XXXXXXX\0			Max 8bytes ID
 XXXXXXXXXXXXXXX			16bytes Communication Key
 YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time & updater ID
-X(x20)				20bytes Reserved
+XXXXXXXXXXXXXXX                 16bytes Session ID
+X(x20)				4bytes Reserved
 
 
 

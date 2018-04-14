@@ -11,36 +11,53 @@ function checkKey($str,$fixedLen=0)
 function checkID($str) //For un-encoded ID only.
 {
 	if (!$str) return false;
-	for($i=0;$i<strlen($str);$i++) {if ($str[$i]==chr(0)) break;}
-	if ($i<1 || $i>7) return false;
+	$p=strpos($str,"\0");
+	if ($p<1 || $p>7) return false;
 	for($i=0;$i<$p;$i++)
 	{
-		$ch=$str[$i]; 
+		$ch=$str[$i];
 		if ($ch<'0' || $ch>'9') return false;
 	}
 	return true;
 }
-function intToBytes($value) // 2 bytes
+function intToBytes($value,$length)
 {
-	if ($value>65535) $value=$value%65536;
-	return chr($value % 256).chr((int) $value/256);
-}
-function bytesToInt($value) // 2 bytes
-{
-	if (count($value)<1) return ord($value[0]);
-	else return ord($value[0])+256*ord($value[1]);
-}
-function intToBytes4($value) // 4 bytes
-{
-	return chr($value & 0xFF).chr($value>>8 & 0xFF).chr($value>>16 & 0xFF).chr($value>>24 & 0xFF);
-}
-function bytesToInt4($value) // 4 bytes
-{
-	$temp=0;
-	for ($i=0;$i<(strlen($value)<4?strlen($value):4);$i++) $temp+=ord($value[$i])<<($i*8);
+	$temp='';
+	for ($i=0;$i<$length;$i++)
+	{
+		$temp.=chr($value & 0xFF);
+		$value>>=8;
+	}
 	return $temp;
 }
-function stringsToInts($value)
+function bytesToInt($value,$length)
+{
+	$temp=0;
+	if (strlen($value)<$length) $length=strlen($value);
+	for ($i=0;$i<$length;$i++)
+		$temp+=ord($value[$i])<<($i*8);
+	return $temp;
+}
+function bytes_diff($value1,$value2)  // Return: Bool
+{
+	return bytesToInt($value1,strlen($value1))==bytesToInt($value2,strlen($value2));
+}
+function bytesXOR($value1,$value2)
+{
+	if (!$value1 || !$value2) return '';
+	if (strlen($value2) > strlen($value1))
+	{
+		$temp=$value2;
+		$value2=$value1.str_repeat("\0",$value2-$value1);
+		$value1=$temp;
+	}
+	for ($i=0;$i<strlen($value1);$i++)
+	{
+		$value1[$i]=chr(ord($value1[$i])^ord($value2[$i]));
+	}
+	return $value1;
+}
+function stringsToInts($value)  // Return: Array of Integers
 {
 	if ($value==NULL) return NULL;
 	else if (count($value)==1) return (int)$value;
@@ -50,7 +67,7 @@ function stringsToInts($value)
 		foreach ($value as $item) array_push($temp,(int)$item);
 		return $temp;
 	}
-}
+}	
 function timeDiff($time1,$time2='') // Return: Long
 {
 	define('TIME_REG','/^([0-9]{4})\/([0-1][0-9])\/([0-3][0-9]),([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/');
@@ -62,6 +79,7 @@ function timeDiff($time1,$time2='') // Return: Long
 		else return mktime($timeArray1[4],$timeArray1[5],$timeArray1[6],$timeArray1[2],$timeArray1[3],$timeArray1[1])-mktime($timeArray2[4],$timeArray2[5],$timeArray2[6],$timeArray2[2],$timeArray2[3],$timeArray2[1]);
 	}
 }
+
 class accRecord
 {
 	public $ID,$LastTime,$Session; //String; $LastTime includes SERVER_ID
@@ -121,7 +139,7 @@ class DB
 		fseek($f,30);
 		$temp=fread($f,2);
 		fclose($f);
-		return bytesToInt($temp);
+		return bytesToInt($temp,2);
 	}
 	protected static function _count($f) //Return:Int; <0 Indicating error; Permission of 'rb' required
 	{
@@ -129,13 +147,13 @@ class DB
 		fseek($f,30);
 		$temp=fread($f,2);
 		fseek($f,$p);
-		return bytesToInt($temp);
+		return bytesToInt($temp,2);
 	}
 	protected static function _inc($f) //Return:Bool; Permission of 'rb+'required
 	{
 		$p=ftell($f);
 		fseek($f,30);
-		$temp=bytesToInt(fread($f,2));
+		$temp=bytesToInt(fread($f,2),2);
 		if ($temp<65536) $temp+=1; else return false;
 		fseek($f,30);
 		fwrite($f,intToBytes($temp));
@@ -146,7 +164,7 @@ class DB
 	{
 		$p=ftell($f);
 		fseek($f,30);
-		$temp=bytesToInt(fread($f,2));
+		$temp=bytesToInt(fread($f,2),2);
 		if ($temp>0) $temp-=1; else return false;
 		fseek($f,30);
 		fwrite($f,intToBytes($temp));
@@ -164,11 +182,10 @@ class DB
 	}	
 }
 
-
 class commDB extends DB
 {
 	private $defaultDB='/../db/comm.dat',$dbPrefix='WiChatCD';
-	private $Ver=1;
+	private $Ver=2;
 	
 	public function getKey($ID) //Return:String
 	{
@@ -189,20 +206,20 @@ class commDB extends DB
 		fclose($f);		
 		return $temp;			
 	}
-	public function setKey($ID,$Key) //Return:Bool
+	public function setSession($ID,$newSession,$newKey) // Return:Bool
 	{
-		if (!(checkID($ID) && checkKey($Key,16))) return false;
 		if (!$this->sync()) return false;
+		if (!checkKey($newSession,16) || !checkKey($newKey,16)) return false;
 		$f=fopen($this->db,'rb+');
 		flock($f,LOCK_EX);
-		$temp='';
 		fseek($f,32);
+		$temp=fread($f,8);
 		while(true)
 		{
-			$temp=fread($f,8);
 			if ($temp==$ID) break;
 			if (feof($f)) break;
 			fseek($f,56,SEEK_CUR);
+			$temp=fread($f,8);
 		}
 		if ($temp!=$ID) 
 		{
@@ -210,10 +227,39 @@ class commDB extends DB
 			fseek($f,0,SEEK_END);
 			fwrite($f,$ID.str_repeat(chr(0),8-strlen($ID)));
 		}
-		fwrite($f,$Key.gmdate(TIME_FORMAT).chr(SERVER_ID).str_repeat(chr(0),20));
+		fwrite($f,$newKey.gmdate(TIME_FORMAT).chr(SERVER_ID).$newSession);
+		fwrite($f,str_repeat(chr(0),4));
 		flock($f,LOCK_UN);
-		fclose($f);	
-		return true;		
+		self::update($f);
+		fclose($f);
+		return true;
+		
+	}
+	public function getIDBySession($Session) //Return:String
+	{
+		if (!$this->sync()) return '';
+		$f=fopen($this->db,'rb');
+		fseek($f,76);
+		$temp=fread($f,16);
+		while(true)
+		{
+			if ($temp==$Session) break;
+			if (feof($f)) break;
+			fseek($f,48,SEEK_CUR);
+			$temp=fread($f,16);
+		}
+		if ($temp==$Session)
+		{
+			fseek($f,-60,SEEK_CUR);
+			$temp=fread($f,8);
+			fclose($f);
+			return $temp;
+		}
+		else
+		{
+			fclose($f);
+			return '';
+		}
 	}
 }
 
@@ -417,80 +463,6 @@ class accDB extends DB
 		fclose($f);
 		return $newState;			
 	}
-	/*Temporarily unused
-	public function getSession($id) // Return:string 
-	{
-		if (!$this->sync()) return '';
-		$f=fopen($this->db,'rb');
-		//if (self::_count($f)<1) {fclose($f); return KEY_NULL;}
-		fseek($f,32);
-		$temp='';
-		while(true)
-		{
-			$temp=fread($f,8);
-			if ($temp==$ID) break;
-			if (feof($f)) break;
-			fseek($f,120,SEEK_CUR);
-		}
-		if ($temp!=$ID){fclose($f); return KEY_NULL;}
-		fseek($f,36,SEEK_CUR);
-		$temp=fread($f,16);
-		fclose($f);
-		return $temp; 
-	}
-	*/
-	public function setSession($ID,$newKey) // Return:Bool
-	{
-		if (!$this->sync()) return false;
-		$f=fopen($this->db,'rb+');
-		//if (self::_count($f)<1) {fclose($f); return false;}
-		flock($f,LOCK_EX);
-		fseek($f,32);
-		$temp=fread($f,8);
-		while(true)
-		{
-			if ($temp==$ID) break;
-			if (feof($f)) break;
-			fseek($f,120,SEEK_CUR);
-			$temp=fread($f,8);
-		}
-		if ($temp!=$ID) {flock($f,LOCK_UN); fclose($f); return false;}
-		fseek($f,36,SEEK_CUR);
-		fwrite($f,$newKey,16);
-		flock($f,LOCK_UN);
-		self::update($f);
-		fclose($f);
-		return true;
-		
-	}
-	public function getIDBySession($key) //Return:String
-	{
-		if (!$this->sync()) return '';
-		$f=fopen($this->db,'rb');
-		//if (self::_count($f)<1) {fclose($f); return '';}
-		fseek($f,76);
-		$temp=fread($f,16);
-		while(true)
-		{
-			if ($temp==$key) break;
-			if (feof($f)) break;
-			fseek($f,112,SEEK_CUR);
-			$temp=fread($f,16);
-		}
-		if ($temp==$key)
-		{
-			fseek($f,-60,SEEK_CUR);
-			$temp=fread($f,8);
-			fclose($f);
-			return $temp;
-		}
-		else
-		{
-			fclose($f);
-			return '';
-		}
-	}
-
 }
 
 class accDB2 extends accDB
@@ -587,7 +559,7 @@ class recDB extends DB
 		$tempRecord->to=$temp2;
 		$tempRecord->state=$state;
 		$temp=fread($f,1);	$tempRecord->type=ord($temp);
-		$temp=fread($f,4);	$tempRecord->length=bytesToInt4($temp);
+		$temp=fread($f,4);	$tempRecord->length=bytesToInt($temp,4);
 		$temp=fread($f,16);	$tempRecord->resID=$temp;
 		$temp=fread($f,19);	$tempRecord->lastTime=$temp;
 		fclose($f);	
@@ -622,7 +594,7 @@ class recDB extends DB
 				fseek($f,0,SEEK_END);
 			}
 		}
-		fwrite($f,$data->from.str_repeat(chr(0),8-strlen($data->from)).$data->to.str_repeat(chr(0),8-strlen($data->to)).chr($data->state).chr($data->type).intToBytes4($data->length).$data->resID.gmdate(TIME_FORMAT).chr(SERVER_ID).str_repeat(chr(0),6));	
+		fwrite($f,$data->from.str_repeat(chr(0),8-strlen($data->from)).$data->to.str_repeat(chr(0),8-strlen($data->to)).chr($data->state).chr($data->type).intToBytes($data->length,4).$data->resID.gmdate(TIME_FORMAT).chr(SERVER_ID).str_repeat(chr(0),6));	
 		self::update($f);
 		flock($f,LOCK_UN);
 		fclose($f);

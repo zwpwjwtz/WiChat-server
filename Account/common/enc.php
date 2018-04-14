@@ -1,41 +1,26 @@
 <?php
 if (!defined('RESPONSE_HEADER')) exit(0);
-define('ENC_KEY_SEED','9foiw2H$$GDSF#T$GS0fdWERWeG1u032FHd39f0wlog23a11idlk4IJG0gGRR0');
 define('ENC_DELTA_DEFAULT','`-jvDj34hjG]vb 0-r 32-ug11`JWaepoj 1#@f12?#');
+define('ENC_AES_ALGO', 'AES-256-CBC');
+define('ENC_AES_KEY_LEN', 32);
+define('ENC_AES_IV_LEN', 16);
 
-function genKey($len=16,$seed='')
+function genKey($len=16, $seed='', $dec=false)
 {
-  if ($seed=='') $seed=ENC_KEY_SEED;
-  if(strlen($seed)<4) $seed=genKey(16);
-  $seed=md5($seed);
-  if (!$seed) return '';
-  $seedLen=strlen($seed);
-  $temp='';
-  for($i=0;$i<$len;$i++) $temp.=((int)substr($seed,rand(0,$seedLen-1),1)+rand(0,9))%10;
-  return $temp;
+	if (!$seed) $seed='';
+	if ($seed=='' || strlen($seed)<4) $seed=md5(time());
+	$seedLen=strlen($seed);
+	$temp='';
+	if ($dec)
+		for($i=0;$i<$len;$i++)
+			$temp.=(ord($seed[rand(0,$seedLen-1)])+mt_rand(0,255))%10;
+	else
+		
+		for($i=0;$i<$len;$i++)
+			$temp.=chr(ord($seed[rand(0,$seedLen-1)])+mt_rand(0,255));
+	return $temp;
 }
-function intTo4Bytes($value) //Return:String
-{
-	return chr($value&0xFF).chr(($value>>8)&0xFF).chr(($value>>16)&0xFF).chr(($value>>24)&0xFF);
-}
-function encode($value,$key,$outLen=0,$dec=false) // Return:String
-{
-	if (strlen($key)<16) $key=ENC_KEY_SEED;
-	$len=strlen($value); $klen=strlen($key);
-	if ($outLen<1) 
-	 if (strlen($value)<1) $outLen=16; else $outLen=$len;
-	do
-	{
-		$value=sha1($value,true).$value;
-		$len=strlen($value);
-		if ($dec)
-			for ($i=0;$i<$len;$i++) $value[$i]=chr((ord($value[$i])+ord($key[($i+22)%$klen]))%10+48);
-		else
-			for ($i=0;$i<$len;$i++)	$value[$i]=chr((ord($value[$i])+ord($key[($i+22)%$klen]))%256);					
-	}while($len<$outLen);
-	return substr($value,0,$outLen);
-}
-function fuse($value,$delta,$base=128) //Return:String
+function fuse($value, $delta='', $base=128) //Return:String
 {
 	$j=0;
 	if (strlen($delta)<8) $delta=ENC_DELTA_DEFAULT;
@@ -46,7 +31,7 @@ function fuse($value,$delta,$base=128) //Return:String
 	}
 	return $value;
 }
-function fuse_R($value,$delta,$base=128)
+function fuse_R($value, $delta='', $base=128)
 {
 	$j=0;
 	if (strlen($delta)<8) $delta=ENC_DELTA_DEFAULT;
@@ -57,209 +42,29 @@ function fuse_R($value,$delta,$base=128)
 	}
 	return $value;
 }
-class CSC1
+function crc32sum($value)
 {
-	public $OK; //Bool
-	const MinKeyLength=16; //Int
-	const MaxFileBlock = 65000; //Int
-	private static $nineCell=array(1,2,3,6,9,8,7,4,5);
-	function __construct()
-	{
-		$this->OK=true;
-	}
-	private static function rotate($number, $angle)
-	{
-       	$angle %= 8;
-		$temp='';
- 		if ($angle == 0) $temp = $number;
-		else
-		{
-			for ($i = 0;$i<strlen($number);$i++)
-			{
-   				$value = (int)$number[$i];
-				if ($value == 0) $temp.='0';
-				else if ($value == 5) $temp.='5';
-				else 
-				{
-					for ($j = 0;$j<8;$j++) if (self::$nineCell[$j] == $value) break;
-      					$temp.=self::$nineCell[($angle + $j) % 8];
-      				}
-      		}
-		}
-      	return $temp;
-	}
-	private static function rotate_R($number,$angle)
-	{
-		return self::rotate($number,8- $angle % 8);
-	}
-	private static function invert($number, $mirror)
-	{
-		$temp=''; $value=0;
-		for ($i = 0; $i<strLen($number); $i++) 
-		{
-			$value = (int)$number[$i];
-			if ($value == 0) $value = 5;
-			else if ($value == 5) $value = 0;
-			else $value = 10 - $value;
-			$temp .= $value;
-		}
-		$temp = self::reflect($temp, $mirror);
-		return $temp;
-	}
-	private static function invert_R($number, $mirror)
-	{
- 		$number=self::reflect_R($number,$mirror);
-		$temp='';
-		for ($i = 0; $i<strLen($number); $i++) 
-		{
-			$value = (int)$number[$i];
-			if ($value == 0) $value = 5;
-			else if ($value == 5) $value = 0;
-			else $value = 10 - $value;
-			$temp .= $value;
-		}
-		return $temp;
-	}
-	private static function reflect($number, $mirror)
-	{
- 		$temp=''; $value=0;
-		for ($i = 0; $i<strLen($number); $i++) 
-		{
-			$value = (int)$number[$i];
-			if ($value !=9 )
-			switch($mirror % 4)
-			{
-				case 0: $value = ((int)($value / 3) + 2) % 3 * 3 + $value % 3; break;
-    			case 1: $value = (int)($value / 3) * 3 + ($value + 1) % 3; break;
-				case 2: $value = (int)($value / 3) * 3 + ($value + 2) % 3; break;
-				case 3: $value = ((int)($value / 3) + 1) % 3 * 3 + $value % 3; break;
-			}
-			$temp.=$value;
-		}
-		return $temp;
-	}
-	private static function reflect_R($number,$mirror)
-	{
-		return self::reflect($number,3 - $mirror % 4);
-	}
-	private static function rotoreflect($number, $mixedVar)
- 	{
- 		return self::reflect(self::rotate($number, $mixedVar), $mixedVar);
- 	}
-	private static function rotoreflect_R($number, $mixedVar)
-	{
-		return self::rotate_R(self::reflect_R($number, $mixedVar), $mixedVar);
-	}
-	private static function shift($number, $digit) //As String
-	{
-		$l=strlen($number);
-		if ($digit >= 0)
-		{
-			$digit = $digit % $l;
-  			return substr($number, $l-$digit,$digit).substr($number,0,$l - $digit);
- 		}
-		else
-		{
-			$digit = (-$digit) % $l;
-  			return substr($number, $digit,$l - $digit).substr($number,0,$digit);
-		}
-	}
-
-	private static function checkDigits($number) //Return:Bool
-	{
- 		$flag = true;
- 		for ($i = 0; $i<strlen($number); $i++)
- 			if (ord($number[$i])> 57 || ord($number[$i])< 48) {$flag = false; break;}
-		return $flag;
-	}
-	private static function checkKey($key) //Return:Bool
-	{
-		if ($key == '' || strlen($key) < self::MinKeyLength) return false;
- 		if (!self::checkDigits($key)) return false;
-		return true;
-	}
-	private static function buildKey($key) // Return:Bool
-	{
- 		if (!self::checkKey($key)) return null;
- 		$keyArray=array_pad(array(),(int)(strlen($key)/2)*2,0);
- 		for ($i=0;$i<count($keyArray);$i++)
- 		{
- 			$keyArray[$i]=(int)$key[$i] % 4;
-			$i++;
- 			$keyArray[$i]=(int)$key[$i];
- 		}
-		return $keyArray;
-	}
-	private static function arrayReset(&$arr)
-	{
-		for ($i=0;$i<count($arr);$i++) $arr[$i]="\0";
-		return;
-	}
-	public function encrypt($value,$key) //Return:String
-		$length = strlen($value);
-		if ($length > self::MaxFileBlock) return null;
-		$keyArray = self::buildKey($key);
-		if (!$keyArray) return null;
-		$kl = count($keyArray); $pK = 2;
-		$tempByte = 0; $tempChar = '';
-		$bufferOut = str_repeat("\0",(int)(($length - 1) * 1.25) + 2);
-
-			$pBO = 0;
-			for ($pBI = 0; $pBI < $length; $pBI++)
-			{
-				$tempChar = self::shift(sprintf('%03d',ord($value[$pBI])),$keyArray[$pK]+$keyArray[$pK+1]);
-     			switch($keyArray[$pK])
-    			{
-    				case 0: $tempChar = self::rotate($tempChar, $keyArray[$pK+1]);break;
-    				case 1: $tempChar = self::invert($tempChar, $keyArray[$pK+1]);break;
-					case 2: $tempChar = self::reflect($tempChar, $keyArray[$pK+1]);break;
-					case 3: $tempChar = self::rotoreflect($tempChar, $keyArray[$pK+1]);
-				}
-				$bufferOut[$pBO] = chr($tempByte << (4 - $pBI % 4) % 4 * 2 | (int)$tempChar >> ($pBI % 4 + 1) * 2);
-				$tempByte = (1 << ($pBI % 4 + 1) * 2) - 1 & (int)$tempChar;
-				$pK = ($pK + ord($value[$pBI]) * 2) % $kl;
-				$pBO++;
-				if ($pBO % 5 == 4)
-				{
-					$bufferOut[$pBO++] = chr($tempByte);
-					$tempByte = 0;
-				}
-			}
-			if  ($pBO % 5 != 0) $bufferOut[$pBO] = chr($tempByte << (4 - $pBO % 5) * 2);
-
- 		self::arrayReset($keyArray);
- 		return $bufferOut;
-	}
-	public function decrypt($value,$key) // Return:String
-	{
-		$length = strlen($value);
-		if ($length > self::MaxFileBlock * 1.25) return null;
-		$keyArray = self::buildKey($key);
-		if (!$keyArray) return null;
-		$kl = count($keyArray); $pK = 2;
-		$tempByte = 0; $tempChar = '';
-		$bufferOut = str_repeat("\0",(int)(($length + 4) / 1.25) - 3);
-
-			$pBO = 0;
-			for ($pBI = 0; $pBI < $length - 1; $pBI++)
-			{
-				$tempVar = (ord($value[$pBI]) & 0xFF >> $pBI % 5 * 2) << ($pBI % 5 + 1) * 2 | ord($value[$pBI + 1]) >> (3 - $pBI % 5) * 2;
-				$tempChar = self::shift(sprintf('%03d',$tempVar),-$keyArray[$pK]-$keyArray[$pK+1]);
-				switch($keyArray[$pK])
-				{
-					case 0: $tempChar = self::rotate_R($tempChar,$keyArray[$pK+1]); break;
-					case 1: $tempChar = self::invert_R($tempChar, $keyArray[$pK+1]); break;
-					case 2: $tempChar = self::reflect_R($tempChar, $keyArray[$pK+1]); break;
-					case 3: $tempChar = self::rotoreflect_R($tempChar, $keyArray[$pK+1]);
-				}
-				$bufferOut[$pBO] = chr((int)$tempChar);
-				$pK = ($pK + ord($bufferOut[$pBO]) * 2) % $kl;
-    			$pBO++;
-     			if($pBI % 5 == 3) $pBI++;
-			}
-
-  		self::arrayReset($keyArray);
-	  	return $bufferOut;
-	}
-}	
+    $var=crc32($value);
+    return chr($var&0xFF).chr($var>>8 & 0xFF).chr($var>>16 & 0xFF).chr($var>>24 & 0xFF);
+}
+function sha256sum($value)
+{
+    return hash("sha256", $value, true);
+}
+function hmac($value, $key)
+{
+	return hash_hmac('sha256', $value, $key, true);
+}
+function aes_encrypt($value, $key)
+{
+    if (strlen($key) < ENC_AES_KEY_LEN) $key=hash("sha256", $key, true);
+    $iv=genKey(ENC_AES_IV_LEN);
+    return $iv.openssl_encrypt($value, ENC_AES_ALGO, $key, OPENSSL_RAW_DATA, $iv);
+}
+function aes_decrypt($value, $key)
+{
+    if (strlen($key) < ENC_AES_KEY_LEN) $key=hash("sha256", $key, true);
+    $iv=substr($value, 0, ENC_AES_IV_LEN);
+    return openssl_decrypt(substr($value, ENC_AES_IV_LEN), ENC_AES_ALGO, $key, OPENSSL_RAW_DATA, $iv);
+}
 ?>

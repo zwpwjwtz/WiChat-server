@@ -16,15 +16,6 @@ define('RESPONSE_NEED_LOGIN',6);
 define('RESPONSE_DATE_EXPIRED',7);
 define('RESPONSE_IN_MAINTANANCE',8);
 
-define('SERVER_RESPONSE_HEADER','WiChatSR');
-define('SERVER_RESPONSE_HEADER_LEN','8');
-
-define('ACCOUNT_SCOMM_ACTION_NONE',0);
-define('ACCOUNT_SCOMM_ACTION_GET_ID_STATE',1);
-define('ACCOUNT_SCOMM_ACTION_GET_ID_KEY',2);
-
-define('ACCOUNT_SCOMM_KEY','961827451825487354432593529203876414302532553919521009');
-
 define('ACCOUNT_STATE_DEFAULT',0);
 define('ACCOUNT_STATE_ONLINE',1);
 define('ACCOUNT_STATE_OFFLINE',2);
@@ -47,6 +38,6 @@ define('TIME_FORMAT','Y/m/d,H:i:s');
 define('TIME_LEN',19);
 define('TIME_ZERO','0001/01/01,00:00:00');
 
-$validVersion=array(3,4);
+$validVersion=array(255);
 // Constants and Absolute URLs Here ONLY
 ?>

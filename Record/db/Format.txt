@@ -1,3 +1,20 @@
+Account2.dat:
+====Header====			32bytes Fixed
+WiChatAD			8bytes DB Type
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time
+X				1byte Server ID
+X				1byte DB Version
+XX				2byte Record Number
+
+====Record Area====		128bytes Per Record
+XXXXXXX\0			Max 8bytes ID
+XXXXXXXXXXXXXXX			16bytes record salt
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Login Time & updater ID
+XXXXXXXX			16bytes Reserved
+X				1byte Current State
+X(x67)				67bytes Reserved
+
+
 Comm.dat
 ====Header====			32bytes Fixed
 WiChatCD			8bytes DB Type
@@ -6,11 +23,12 @@ X				1byte Server ID
 X				1byte DB Version
 XX				2byte Record Number
 
-====Record Area====			64bytes Per Record
-XXXXXXX\0					Max 8bytes ID
-XXXXXXXXXXXXXXX				16bytes Communication Key
+====Record Area====		64bytes Per Record
+XXXXXXX\0			Max 8bytes ID
+XXXXXXXXXXXXXXX			16bytes Communication Key
 YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time & updater ID
-X(x20)						20bytes Reserved
+XXXXXXXXXXXXXXX                 16bytes Session ID
+X(x20)				4bytes Reserved
 
 
 Rec.dat
