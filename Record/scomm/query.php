@@ -15,8 +15,8 @@ function queryAccountServer($action, $session)
     // Pharse response from account server
     include_once('../common/enc.php');
     include_once('../common/lib.php');
-    $content=aes_decrypt(substr($sf,SERVER_RESPONSE_HEADER_LEN+4),ACCOUNT_SCOMM_KEY);
-    if (substr($sf,SERVER_RESPONSE_HEADER_LEN,4)!=intToBytes(crc32($content),4)) return '';
-    else return $content;
+    $content=aes_decrypt(substr($sf,SERVER_RESPONSE_HEADER_LEN),ACCOUNT_SCOMM_KEY);
+    if (substr($content,0,4)!=crc32sum(substr($content,4))) return '';
+    else return substr($content,4);
 }
 ?>

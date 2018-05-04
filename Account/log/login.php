@@ -109,8 +109,8 @@ else
 					if (!$db3->setSession($tempRecord->ID,$sessionID,$sessionKey)) $out.=chr(RESPONSE_FAILED);
 					else
 					{
-						$outContent=$sessionKey.$account->Msg;
-						$out.=chr(RESPONSE_SUCCESS).$sessionID.intToBytes(ACCOUNT_ACTIVE_TIME,2).chr($account->State).aes_encrypt(crc32sum($outContent).$outContent,$tempRecord->Key);
+						$outContent=chr(RESPONSE_SUCCESS).chr($account->State).intToBytes(ACCOUNT_ACTIVE_TIME,2).$sessionKey.$account->Msg;
+						$out.=chr(RESPONSE_SUCCESS).$sessionID.aes_encrypt(crc32sum($outContent).$outContent,$tempRecord->Key);
 					}
 				}
 				break;

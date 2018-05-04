@@ -32,12 +32,13 @@ else
 			else
 			{
 				include_once('../common/enc.php');
-				$content=aes_decrypt(substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN+4),$sessionKey);
-				if ($content==NULL || intToBytes(crc32($content),4)!=substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN,4))  $out.=chr(RESPONSE_INVALID).chr(0);
+				$content=aes_decrypt(substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN),$sessionKey);
+				if ($content==NULL || crc32sum(substr($content,4))!=substr($content,0,4))  $out.=chr(RESPONSE_INVALID).chr(0);
 				else //Certification passed.
 				{
 					$db=new accDB(ACCOUNT_LIST);
 					$outContent='';
+					$content=substr($content,4);
 					$action=ord(substr($content,0,1));
 					$option=ord(substr($content,1,1));
 					$content=substr($content,2);
@@ -209,7 +210,7 @@ else
 						default:
 							$outContent.=chr(RESPONSE_INVALID).chr(0);
 					}
-					$out.=intToBytes(crc32($outContent),4).aes_encrypt($outContent,$sessionKey);
+					$out.=aes_encrypt(crc32sum($outContent).$outContent,$sessionKey);
 				}
 			}			
 		}

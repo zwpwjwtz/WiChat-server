@@ -63,12 +63,12 @@ else
 		if (!($sessionKey=$db->getKey($ID))) $out.=chr(RESPONSE_FAILED).chr(0);
 		else
 		{	
-			$content=aes_decrypt(substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN+4),$sessionKey);
-			if ($content==NULL || intToBytes(crc32($content),4)!=substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN,4))  $out.=chr(RESPONSE_INVALID).chr(0);
+			$content=aes_decrypt(substr($buffer,QUERY_HEADER_LEN+ACCOUNT_SESSION_LEN),$sessionKey);
+			if ($content==NULL || crc32sum(substr($content,4))!=substr($content,0,4))  {$out.=chr(RESPONSE_INVALID).chr(0);}
 			else //Certification passed.
 			{
 				$outContent='';
-			
+				$content=substr($content,4);
 				switch(ord($content[0]))
 				{
 					case REC_GET_NONE:
@@ -87,7 +87,7 @@ else
 					default:
 						$outContent.=chr(RESPONSE_INVALID).chr(0);
 				}
-				$out.=intToBytes(crc32($outContent),4).aes_encrypt($outContent,$sessionKey);
+				$out.=aes_encrypt(crc32sum($outContent).$outContent,$sessionKey);
 			}
 		}			
 	}

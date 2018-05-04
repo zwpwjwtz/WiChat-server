@@ -31,12 +31,12 @@ else
 				// Parse client request
 				include_once('../common/enc.php');
 				include_once('../common/lib.php');
-				$content=aes_decrypt(substr($buffer,QUERY_HEADER_LEN+QUERY_LOGIN_SESSION_LEN+4),$commKey);
-				if (substr($buffer,QUERY_HEADER_LEN+QUERY_LOGIN_SESSION_LEN,4)!=intToBytes(crc32($content),4)) $out.=chr(RESPONSE_FAILED).chr(0);
+				$content=aes_decrypt(substr($buffer,QUERY_HEADER_LEN+QUERY_LOGIN_SESSION_LEN),$commKey);
+				if (substr($content,0,4)!=crc32sum(substr($content,4))) $out.=chr(RESPONSE_FAILED).chr(0);
 				else //Certification passed.
 				{
 					// Extract pre-shared key
-					$key=substr($content,0,ACCOUNT_COMMKEY_LEN);
+					$key=substr($content,4,ACCOUNT_COMMKEY_LEN);
 					
 					// Get key salt for client-side encryption
 					$db=new accDB2(ACCOUNT_LIST_CACHE);
@@ -53,7 +53,7 @@ else
 					$key=substr(hmac($commKey,$key),0,ACCOUNT_COMMKEY_LEN);
 					if (!$db2->setSession($ID,$Session,$key)) $outContent=chr(RESPONSE_FAILED).chr(0);
 					else $outContent=chr(RESPONSE_SUCCESS).chr(0).$salt;
-					$out.=intToBytes(crc32($outContent),4).aes_encrypt($outContent,$commKey);
+					$out.=aes_encrypt(crc32sum($outContent).$outContent,$commKey);
 				}
 			}
 		}

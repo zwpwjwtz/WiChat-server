@@ -54,7 +54,7 @@ else
 		default:
 			$outContent.=chr(RESPONSE_INVALID).chr(0);
 	}
-	$out.=intToBytes(crc32($outContent),4).aes_encrypt($outContent,ACCOUNT_SCOMM_KEY);
+	$out.=aes_encrypt(crc32sum($outContent).$outContent,ACCOUNT_SCOMM_KEY);
 }
 echo($out);
 exit(0);
