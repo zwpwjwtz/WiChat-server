@@ -79,15 +79,15 @@ else
 					// Read double-hashed password from database
 					$db2=new accDB(ACCOUNT_LIST);
 					if (!$db2->OK) {$out.=chr(RESPONSE_FAILED); break;}
-					$password_salted=substr($db2->getPW2($ID),0,ACCOUNT_KEY_SALTED_LEN);
+					$passwordAndSalt=$db2->getPW2($tempRecord->ID);
 					
 					// Extract hashed password, 
 					// then re-hash it with the given salt
 					$plainText=aes_decrypt(substr($buffer,QUERY_HEADER_LEN+2+QUERY_LOGIN_ACCOUNT_LEN),$tempRecord->Key);
-					$password=substr(hmac(substr($plainText, 0, ACCOUNT_KEY_LEN),substr($password_salted,ACCOUNT_KEY_SALTED_LEN)),0,ACCOUNT_KEY_SALTED_LEN);
+					$password=substr(hmac(substr($plainText, 0, ACCOUNT_KEY_LEN),substr($passwordAndSalt,ACCOUNT_KEY_SALTED_LEN)),0,ACCOUNT_KEY_SALTED_LEN);
 					
 					// Compare double-hashed password
-					if (bytes_diff($password_salted,$password)) {$out.=chr(RESPONSE_FAILED); break;}
+					if (bytes_diff(substr($passwordAndSalt,ACCOUNT_KEY_SALTED_LEN),$password)) {$out.=chr(RESPONSE_FAILED); break;}
 					
 					// Extract online state
 					$state=ord(substr($plainText,ACCOUNT_KEY_LEN,1));

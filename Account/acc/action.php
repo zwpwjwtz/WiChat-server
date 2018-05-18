@@ -166,13 +166,23 @@ else
 							}
 							break;
 						case ACCOUNT_ACTION_INFO_PW_CHANGE:
-							$oldeKey=substr($content,0,16);
-							$newKey=substr($content,16,16);
-							if (!(checkKey($oldeKey,ACCOUNT_KEY_LEN) && checkKey($newKey,ACCOUNT_KEY_LEN))) {$outContent.=chr(RESPONSE_INVALID).chr(0); break;} 
-							if (!$db->setPW($ID,$oldeKey,$newKey))
+							$password=explode(chr(0),$content);
+							if (count($password) < 2)
+							{$outContent.=chr(RESPONSE_INVALID).chr(0);break;}
+							$password[0]=sha256sum($password[0]);
+							$password[1]=sha256sum($password[1]);
+							$oldKey=substr(hmac($password[0],$ID),0,ACCOUNT_KEY_LEN);
+							$newKey=substr(hmac($password[1],$ID),0,ACCOUNT_KEY_LEN);
+							if ($oldKey != $db->getPW($ID))
+							{$outContent.=chr(RESPONSE_SUCCESS).chr(RESPONSE_ACCOUNT_PASSWORD_INCORRECT); break;}
+							if (!$db->setPW($ID,$newKey))
+							{$outContent.=chr(RESPONSE_FAILED).chr(0); break;}
+							$key_salt=genkey(ACCOUNT_KEY_LEN - ACCOUNT_KEY_SALTED_LEN);
+							$saltedKey=hmac(substr($password[1],0,ACCOUNT_KEY_LEN),$key_salt);
+							if (!$db->setPW2($ID,substr($saltedKey,0,ACCOUNT_KEY_SALTED_LEN).$key_salt))
 								$outContent.=chr(RESPONSE_FAILED).chr(0);
 							else
-								$outContent.=chr(RESPONSE_SUCCESS).chr(0);
+								$outContent.=chr(RESPONSE_SUCCESS).chr(RESPONSE_ACCOUNT_PASSWORD_OK);
 						case ACCOUNT_ACTION_FRI_GETINFO:
 							$friendList=matchIDList($content);
 							if ($friendList==NULL) {$outContent.=chr(RESPONSE_INVALID).chr(0); break;}

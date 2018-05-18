@@ -17,6 +17,9 @@ define('ACCOUNT_ACTION_OPTION_NORMAL',0);
 define('ACCOUNT_ACTION_OPTION_GETDATE',1);
 define('ACCOUNT_ACTION_OPTION_GETSTATE',2);
 
+define('RESPONSE_ACCOUNT_PASSWORD_OK',1);
+define('RESPONSE_ACCOUNT_PASSWORD_INCORRECT',2);
+
 define('REG_ID_LIST','/^<IDList>(.+)<\/IDList>$/');
 define('REG_ID_LIST_ID','/<ID>(\d{1,7}\0{1,7})<\/ID>/');
 define('REG_MSG','/^<MSG>([\x0-\xFF]{1,64})<\/MSG>$/');
