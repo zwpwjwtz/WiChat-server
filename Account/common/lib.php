@@ -94,14 +94,14 @@ class accRecord
 class DB
 {
 	public $OK; //Bool
-	private $defaultDB='/../db/db.dat',$dbPrefix='WiChatDD'; //String
+	protected $defaultDB='/../db/db.dat',$dbPrefix='WiChatDD'; //String
 	protected $db=''; //String
-	private $Ver=1; //Int
-	private $nowPointer;
+	protected $Ver=1; //Int
+	protected $nowPointer;
 	function __construct($dbFile)
 	{
 		$this->OK=false;
-		if (!$dbFile) $dbFile=dirname(__FILE__).$this->$defaultDB;
+		if (!$dbFile) $dbFile=dirname(__FILE__).$this->defaultDB;
 		if (!file_exists($dbFile))
 		{
 			$f=fopen($dbFile,'wb');
@@ -180,8 +180,8 @@ class DB
 
 class loginDB extends DB
 {
-	private $defaultDB='/../db/login.dat',$dbPrefix='WiChatLD';
-	private $Ver=2;
+	protected $defaultDB='/../db/login.dat',$dbPrefix='WiChatLD';
+	protected $Ver=2;
 	
 	public function existRecord($ID,$encoded)
 	{
@@ -268,8 +268,8 @@ class loginDB extends DB
 class accDB extends DB
 {
 	
-	private $defaultDB='/../db/account.dat',$dbPrefix='WiChatDD';
-	private $Ver=2;
+	protected $defaultDB='/../db/account.dat',$dbPrefix='WiChatAD';
+	protected $Ver=2;
 	
 	public function existRecord($ID) //Return:Bool
 	{
@@ -512,8 +512,8 @@ class accDB extends DB
 
 class commDB extends DB
 {
-	private $defaultDB='/../db/comm.dat',$dbPrefix='WiChatCD';
-	private $Ver=2;
+	protected $defaultDB='/../db/comm.dat',$dbPrefix='WiChatCD';
+	protected $Ver=2;
 	
 	public function getKey($ID) //Return:String
 	{
@@ -593,8 +593,8 @@ class commDB extends DB
 
 class relDB extends DB
 {
-	private $defaultDB='/../db/relation.dat',$dbPrefix='WiChatRD';
-	private $Ver=1;
+	protected $defaultDB='/../db/relation.dat',$dbPrefix='WiChatRD';
+	protected $Ver=1;
 	
 	public function getFriend($ID,$state=RELATION_STATE_ESTABLISHED) // Return: Array of Strings
 	{

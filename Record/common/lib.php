@@ -98,14 +98,14 @@ class dataRecord
 class DB
 {
 	public $OK; //Bool
-	private $defaultDB='/../db/db.dat',$dbPrefix='WiChatDD'; //String
+	protected $defaultDB='/../db/db.dat',$dbPrefix='WiChatDD'; //String
 	protected $db=''; //String
-	private $Ver=1; //Int
-	private $nowPointer;
+	protected $Ver=1; //Int
+	protected $nowPointer;
 	function __construct($dbFile)
 	{
 		$this->OK=false;
-		if (!$dbFile) $dbFile=dirname(__FILE__).$this->$defaultDB;
+		if (!$dbFile) $dbFile=dirname(__FILE__).$this->defaultDB;
 		if (!file_exists($dbFile))
 		{
 			$f=fopen($dbFile,'wb');
@@ -184,8 +184,8 @@ class DB
 
 class commDB extends DB
 {
-	private $defaultDB='/../db/comm.dat',$dbPrefix='WiChatCD';
-	private $Ver=2;
+	protected $defaultDB='/../db/comm.dat',$dbPrefix='WiChatCD';
+	protected $Ver=2;
 	
 	public function getKey($ID) //Return:String
 	{
@@ -266,8 +266,8 @@ class commDB extends DB
 class accDB extends DB
 {
 	
-	private $defaultDB='/../db/account.dat',$dbPrefix='WiChatDD';
-	private $Ver=1;
+	protected $defaultDB='/../db/account.dat',$dbPrefix='WiChatAD';
+	protected $Ver=1;
 	
 	public function existRecord($ID) //Return:Bool
 	{
@@ -467,8 +467,8 @@ class accDB extends DB
 
 class accDB2 extends accDB
 {
-	private $defaultDB='/../db/account2.dat',$dbPrefix='WiChatDD';
-	private $Ver=2;//10B
+	protected $defaultDB='/../db/account2.dat',$dbPrefix='WiChatAD';
+	protected $Ver=1;
 	public function setPW($ID,$PasswordOld,$PasswordNew){} //Set empty
 	public function verify($ID,$Password){} //Set empty
 	public function getSalt($ID) //Return:String
@@ -522,8 +522,8 @@ class accDB2 extends accDB
 
 class recDB extends DB
 {
-	private $defaultDB='/../db/rec.dat',$dbPrefix='WiChatDD';
-	private $Ver=1;
+	protected $defaultDB='/../db/rec.dat',$dbPrefix='WiChatSD';
+	protected $Ver=1;
 	
 	private static function _locateRecord($f,$resID) //Return: Int
 	{

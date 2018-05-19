@@ -33,7 +33,7 @@ X(x20)				4bytes Reserved
 
 Rec.dat
 ====Header====			32bytes Fixed
-WiChatDD			8bytes DB Type
+WiChatSD			8bytes DB Type
 YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time
 X				1byte Server ID
 X				1byte DB Version
