@@ -4,6 +4,7 @@ define('COMM_LIST','../db/comm.dat');
 define('RECORD_LIST','../db/rec.dat');
 define('ACCOUNT_LIST_CACHE','../db/account2.dat');
 define('CACHE_DIR','../db/');
+define('REC_INDEX_SUFFIX','.index');
 
 define('REC_ACTION_NONE',0);
 define('REC_ACTION_PULL',1);
@@ -28,6 +29,12 @@ define('REC_STATE_ACTIVE',1);
 define('REC_STATE_LOCKED_WRITING',2);
 define('REC_STATE_BROKEN',3);
 define('REC_STATE_LOCKED_READING',4);
+
+define('REC_INDEX_TYPE_NONE',0);
+define('REC_INDEX_TYPE_NORMAL',1);
+
+define('REC_INDEX_STATE_NONE',0);
+define('REC_INDEX_STATE_ACTIVE',1);
 
 define('RESPONSE_RES_OK',0);
 define('RESPONSE_RES_NOT_EXIST',1);

@@ -90,8 +90,16 @@ class dataRecord
 {
 	public $from,$to;		//String
 	public $type,$length;		//Int
-	public $state;			//Byte
+	public $state;			//Int
 	public $resID;			//String
+	public $lastTime;		//String
+}
+class dataRecordIndex
+{
+	public $from;		//String
+	public $type,$length;		//Int
+	public $state;			//Int
+	public $recordID;		//String
 	public $lastTime;		//String
 }
 
@@ -156,7 +164,7 @@ class DB
 		$temp=bytesToInt(fread($f,2),2);
 		if ($temp<65536) $temp+=1; else return false;
 		fseek($f,30);
-		fwrite($f,intToBytes($temp));
+		fwrite($f,intToBytes($temp,2));
 		fseek($f,$p);
 		return true;
 	}
@@ -167,7 +175,7 @@ class DB
 		$temp=bytesToInt(fread($f,2),2);
 		if ($temp>0) $temp-=1; else return false;
 		fseek($f,30);
-		fwrite($f,intToBytes($temp));
+		fwrite($f,intToBytes($temp,2));
 		fseek($f,$p);
 		return true;
 	}
@@ -527,15 +535,17 @@ class recDB extends DB
 	
 	private static function _locateRecord($f,$resID) //Return: Int
 	{
-		fseek($f,54);
+		fseek($f,48);
 		while(true)
 		{
-			$temp=fread($f,16);
-			if ($resID==$temp) break;
+			$state=ord(fread($f,1));
+			fseek($f,5,SEEK_CUR);
+			$tempID=fread($f,16);
+			if ($resID==$tempID && $state>0) break;
 			if (feof($f)) break;
-			fseek($f,48,SEEK_CUR);
+			fseek($f,42,SEEK_CUR);
 		}
-		if ($resID==$temp) return ftell($f)-38; else return 0;		
+		if ($resID==$tempID && $state>0) return ftell($f)-38; else return 0;
 	}
 	public function getRecord($sender,$receptor)	//Return: dataRecord
 	{
@@ -647,7 +657,7 @@ class recDB extends DB
 		}
 		return $temp;
 	}
-	public function freeResID()	//Return: Bool
+	public function freeResID($resID)	//Return: Bool
 	{
 		if (!$this->sync()) return $tempList;
 		$f=fopen($this->db,'rb+');
@@ -656,7 +666,7 @@ class recDB extends DB
 		fseek($f,54);
 		while(true)
 		{
-			if($temp==fread($f,16))
+			if($resID==fread($f,16))
 			{
 				fseek($f,-22,SEEK_CUR);
 				fwrite($f,chr(0));
@@ -691,6 +701,216 @@ class recDB extends DB
 				fseek($f,5,SEEK_CUR);
 				array_push($cleaned,fread($f,16));
 				fseek($f,42,SEEK_CUR);
+			}
+			else
+			{
+				if (feof($f)) break;
+				fseek($f,63,SEEK_CUR);
+			}
+		}
+		if (count($cleaned)>0) self::update($f);
+		flock($f,LOCK_UN);
+		fclose($f);
+		return $cleaned;
+	}
+}
+
+class recIndex extends DB
+{
+	protected $defaultDB='',$dbPrefix='WiChatSI';
+	protected $Ver=1;
+	
+	private static function _locateRecord($f,$recordID) //Return: Int
+	{
+		fseek($f,32);
+		while(true)
+		{
+			$tempID=fread($f,16);
+			$state=ord(fread($f,1));
+			if ($recordID==$tempID && $state>0) break;
+			if (feof($f)) break;
+			fseek($f,47,SEEK_CUR);
+		}
+		if ($recordID==$temp && $state>0) return ftell($f)-17; else return 0;
+	}
+	public function getRecord($recordID)	//Return: dataRecordIndex
+	{
+		if (!$this->sync()) return NULL;
+		$f=fopen($this->db,'rb');
+		$temp=self::_locateRecord($f,$recordID);
+		if ($temp<=0) return NULL;
+		fseek($f,$temp);
+		$tempRecord=new dataRecord();
+		$temp=fread($f,16);	$tempRecord->recordID=$temp;
+		$temp=fread($f,1);	$tempRecord->state=ord($temp);
+		$temp=fread($f,1);	$tempRecord->type=ord($temp);
+		$temp=fread($f,4);	$tempRecord->length=bytesToInt($temp,4);
+		$temp=fread($f,8);	$tempRecord->from=$temp;
+		fseek($f,8,SEEK_CUR);
+		$temp=fread($f,19);	$tempRecord->lastTime=$temp;
+		fclose($f);	
+		return $tempRecord;			
+	}	
+	
+	public function getLastRecord()	//Return: dataRecordIndex
+	{
+		if (!$this->sync()) return NULL;
+		$f=fopen($this->db,'rb');
+		$f=fseek($f,SEEK_END);
+		if (ftell($f) <= 32) return NULL;
+		fseek($f,-64,SEEK_CUR);
+		$tempRecord=new dataRecord();
+		$temp=fread($f,16);	$tempRecord->recordID=$temp;
+		$temp=fread($f,1);	$tempRecord->state=ord($temp);
+		$temp=fread($f,1);	$tempRecord->type=ord($temp);
+		$temp=fread($f,4);	$tempRecord->length=bytesToInt($temp,4);
+		$temp=fread($f,8);	$tempRecord->from=$temp;
+		fseek($f,8,SEEK_CUR);
+		$temp=fread($f,19);	$tempRecord->lastTime=$temp;
+		fclose($f);	
+		return $tempRecord;			
+	}	
+	public function getRecordsByPosition($begin,$end)	//Return: Array of dataRecordIndex
+	{
+		if (!$this->sync()) return NULL;
+		$recordList=array();
+		$f=fopen($this->db,'rb');
+		fseek($f,32);
+		$pos=0;
+		$tempRecord=new dataRecord();
+		while(true)
+		{
+			$temp=fread($f,16);
+			$state=ord(fread($f,1));
+			if ($state>0)
+			{
+				$tempRecord->recordID=$temp;
+				$tempRecord->state=ord($state);
+				$temp=fread($f,1);	$tempRecord->type=ord($temp);
+				$temp=fread($f,4);	$tempRecord->length=bytesToInt($temp,4);
+				$temp=fread($f,8);	$tempRecord->from=$temp;
+				fseek($f,8,SEEK_CUR);
+				$temp=fread($f,19);	$tempRecord->lastTime=$temp;
+				if ($pos>=$begin)
+					array_push($recordList,clone $tempRecord);
+				$pos+=$tempRecord->length;
+			}
+			if (feof($f)) break;
+			if ($pos>=$end) break;
+			fseek($f,7,SEEK_CUR);
+		}
+		fclose($f);
+		return $recordList;
+	}
+	public function getAllRecords()	//Return: Array of dataRecordIndex
+	{
+		if (!$this->sync()) return NULL;
+		$recordList=array();
+		$f=fopen($this->db,'rb');
+		fseek($f,32);
+		$tempRecord=new dataRecord();
+		while(true)
+		{
+			$temp=fread($f,16);
+			$state=ord(fread($f,1));
+			if ($state>0)
+			{
+				$tempRecord->recordID=$temp;
+				$tempRecord->state=$state;
+				$temp=fread($f,1);	$tempRecord->type=ord($temp);
+				$temp=fread($f,4);	$tempRecord->length=bytesToInt($temp,4);
+				$temp=fread($f,8);	$tempRecord->from=$temp;
+				fseek($f,8,SEEK_CUR);
+				$temp=fread($f,19);	$tempRecord->lastTime=$temp;
+				array_push($recordList,clone $tempRecord);
+			}
+			if (feof($f)) break;
+			fseek($f,7,SEEK_CUR);
+		}
+		fclose($f);	
+		return $recordList;			
+	}	
+	public function setRecord($data)	//Return: Bool
+	{
+		if ($data==NULL || $data->recordID=='') return false;
+		if (!$this->sync()) return NULL;
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		$temp=self::_locateRecord($f,$data->recordID);
+		if ($temp>0)
+		{
+			fseek($f,$temp);
+		}
+		else
+		{
+			if (!self::_inc($f)) {flock($f,LOCK_UN); fclose($f); return false;}
+				fseek($f,0,SEEK_END);
+		}
+		fwrite($f,$data->recordID.chr($data->state).chr($data->type).intToBytes($data->length,4).$data->from.str_repeat(chr(0),8-strlen($data->from)).str_repeat(chr(0),8).gmdate(TIME_FORMAT).chr(SERVER_ID).str_repeat(chr(0),6));	
+		self::update($f);
+		flock($f,LOCK_UN);
+		fclose($f);
+		return true;
+	}	
+	private static function genKey16()	//Return:String
+	{
+		$temp='';
+		for($i=0;$i<16;$i++)	$temp.=rand(0,9);
+		return $temp;
+	}
+	public function getNewRecordID()	//Return: String
+	{
+		if (!$this->sync()) return $tempList;
+		$f=fopen($this->db,'rb');
+		while(true)
+		{
+			$temp=self::genKey16();
+			if (self::_locateRecord($f,$temp)<=0) break;
+		}
+		return $temp;
+	}
+	public function freeRecordID($recordID)	//Return: Bool
+	{
+		if (!$this->sync()) return $tempList;
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		$found=false;
+		fseek($f,32);
+		while(true)
+		{
+			if($recordID==fread($f,16))
+			{
+				fwrite($f,chr(0));
+				$found=true;
+				fseek($f,69,SEEK_CUR);
+			}
+			else
+			{
+				if (feof($f)) break;
+				fseek($f,48,SEEK_CUR);
+			}
+		}
+		self::update($f);
+		flock($f,LOCK_UN);
+		fclose($f);
+		return $found;
+	}
+	public function doCleaning($cleanState) //Return: List of strings of cleaned ResID
+	{
+		if (!$cleanState) return NULL;
+		if (!$this->sync()) return NULL;
+		$cleaned=array();
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		fseek($f,48);
+		while(true)
+		{
+			if (fread($f,1)==chr($cleanState))
+			{
+				fseek($f,-17,SEEK_CUR);
+				array_push($cleaned,fread($f,16));
+				fwrite($f,chr(0));
+				fseek($f,47,SEEK_CUR);
 			}
 			else
 			{

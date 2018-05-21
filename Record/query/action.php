@@ -10,6 +10,17 @@ function cleanDB($db)
 		foreach ($cleanedID as $temp)	unlink(CACHE_DIR.$temp);
 	}
 }
+function recordListToMList($recordList)
+{
+	$length=count($recordList);
+	if ($length<1) return NULL;
+	$temp='<MList>';
+	for ($i=0;$i<$length;$i++)
+		$temp.='<SRC>'.$recordList[$i]->from.'</SRC><TIME>'.$recordList[$i]->lastTime.'</TIME><LEN>'.$recordList[$i]->length.'</LEN>';
+	$temp.='</MList>';
+	return $temp;
+}
+
 if (!(defined('ACCOUNT_SERVER') && defined('RECORD_SERVER') && defined('RECORD_LIST') && defined('RESPONSE_HEADER'))) //Fatal Error
 {
 	exit(0);
@@ -109,6 +120,7 @@ else
 							}
 							break;
 						}
+						$recordIndexFile=new recIndex(CACHE_DIR.$record->resID.REC_INDEX_SUFFIX);
 						$updateDB=false;
 						if ($getAll)
 						{
@@ -118,7 +130,8 @@ else
 							{
 								$sf=fopen(CACHE_DIR.$record->resID,'rb');
 								if (!$sf) {$outContent.=chr(RESPONSE_FAILED).chr(0); break;}
-								$outContent.=chr(RESPONSE_SUCCESS).chr(RESPONSE_RES_OK).fread($sf,filesize(CACHE_DIR.$record->resID));
+								$outContent.=chr(RESPONSE_SUCCESS).chr(RESPONSE_RES_OK).recordListToMList($recordIndexFile->getAllRecords());
+								$outContent.=fread($sf,filesize(CACHE_DIR.$record->resID));
 								fclose($sf);
 								if ($obj==REC_OBJ_CLIENT) 
 								{
@@ -133,7 +146,8 @@ else
 							$sf=fopen(CACHE_DIR.$record->resID,'rb');
 							if (!$sf) {$outContent.=chr(RESPONSE_FAILED).chr(0); break;}
 							fseek($sf,$pBlock*$blockSize);
-							$outContent=chr(RESPONSE_SUCCESS).chr(RESPONSE_RES_OK).fread($sf,$blockSize);
+							$outContent.=chr(RESPONSE_SUCCESS).chr(RESPONSE_RES_OK).recordListToMList($recordIndexFile->getRecordsByPosition($pBlock*$blockSize,($pBlock+1)*$blockSize));
+							$outContent.=fread($sf,$blockSize);
 							if (ftell($sf)>=$record->length)
 							{
 								$outContent[1]=chr(RESPONSE_RES_EOF);
@@ -145,7 +159,11 @@ else
 						if ($updateDB) 
 						{	
 							$db3->setRecord($record);
-							if (($record->state==REC_STATE_BROKEN || $record->state==REC_STATE_NONE) && file_exists(CACHE_DIR.$record->resID)) unlink(CACHE_DIR.$record->resID);	
+							if (($record->state==REC_STATE_BROKEN || $record->state==REC_STATE_NONE) && file_exists(CACHE_DIR.$record->resID))
+							{
+								unlink(CACHE_DIR.$record->resID);
+								unlink(CACHE_DIR.$record->resID.REC_INDEX_SUFFIX);
+							}
 						}					
 						break;
 					case REC_ACTION_PUSH:
@@ -169,6 +187,7 @@ else
 							$record->state=REC_STATE_ACTIVE;
 							$updateDB=true;
 						}
+						$recordIndexFile=new recIndex(CACHE_DIR.$record->resID.REC_INDEX_SUFFIX);
 						switch($record->state) 
 						{
 							case REC_STATE_NONE:
@@ -176,6 +195,13 @@ else
 								break;
 							case REC_STATE_ACTIVE:
 								$record->length+=$contentLen;
+								$recordIndexEntry=new dataRecordIndex();
+								$recordIndexEntry->recordID=$recordIndexFile->getNewRecordID();
+								$recordIndexEntry->type=REC_INDEX_TYPE_NORMAL;
+								$recordIndexEntry->length=$contentLen;
+								$recordIndexEntry->state=REC_INDEX_STATE_ACTIVE;
+								$recordIndexEntry->from=$record->from;
+								$recordIndexFile->setRecord($recordIndexEntry);
 								if ($appending && !$eof) $record->state=REC_STATE_LOCKED_WRITING;
 								$updateDB=true;
 								break;
@@ -183,7 +209,10 @@ else
 								if ($appending)
 								{
 									$record->length+=$contentLen;
+									$recordIndexEntry=$recordIndexFile->getLastRecord();
+									$recordIndexEntry->length+=$contentLen;
 									if ($eof) $record->state=REC_STATE_ACTIVE;
+									$recordIndexFile->setRecord($recordIndexEntry);
 								}
 								else	$record->state=REC_STATE_BROKEN;
 								$updateDB=true;
