@@ -1,11 +1,4 @@
 <?php
-
-define('COMM_LIST','../db/comm.dat');
-define('RECORD_LIST','../db/rec.dat');
-define('ACCOUNT_LIST_CACHE','../db/account2.dat');
-define('CACHE_DIR','../db/');
-define('REC_INDEX_SUFFIX','.index');
-
 define('REC_ACTION_NONE',0);
 define('REC_ACTION_PULL',1);
 define('REC_ACTION_PUSH',2);
@@ -44,4 +37,5 @@ define('RESPONSE_RES_OUT_RANGE',4);
 
 define('MAX_SESSION_CACHE_TIME',1800);
 
+define('REC_INDEX_SUFFIX','.index');
 ?>

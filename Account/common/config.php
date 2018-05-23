@@ -40,8 +40,14 @@ define('ACCOUNT_COMMRAND_LEN',4);
 define('ACCOUNT_ACTIVE_TIME',3600); //Time in second
 define('ACCOUNT_MAX_TRY_TIMES',3);
 
-define('ACCOUNT_SERVER','acc2.wichat.org/Account/');
+define('ACCOUNT_SERVER','127.0.0.1/Account/');
 define('SERVER_ID',1);
+
+define('ACCOUNT_DB_DIR','../db');
+define('LOGIN_LIST',ACCOUNT_DB_DIR.'/login.dat');
+define('ACCOUNT_LIST',ACCOUNT_DB_DIR.'/account.dat');
+define('COMM_LIST',ACCOUNT_DB_DIR.'/comm.dat');
+define('RELATION_LIST',ACCOUNT_DB_DIR.'/relation.dat');
 
 define('TIME_FORMAT','Y/m/d,H:i:s');
 define('TIME_LEN',19);

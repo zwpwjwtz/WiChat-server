@@ -6,8 +6,4 @@ define('QUERY_LOGIN_TYPE_SET_KEY',3);
 
 define('QUERY_LOGIN_SESSION_LEN',16);
 define('QUERY_LOGIN_KEY_LEN',16);
-
-define('COMM_LIST','../db/comm.dat');
-define('ACCOUNT_LIST_CACHE','../db/account2.dat');
-
 ?>

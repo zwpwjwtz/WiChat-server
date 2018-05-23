@@ -1,4 +1,5 @@
 <?php
+require_once('../common/config.php');
 require_once('./config.php');
 if (!(defined('ROOT_SERVER') && defined('RESPONSE_HEADER') && isset($AccServer,$RecServer))) //Fatal Error
 {

@@ -29,10 +29,15 @@ define('KEY_NULL','0000000000000000');
 define('ACCOUNT_SESSION_LEN',16);
 define('ACCOUNT_COMMKEY_LEN',16);
 
-//define('ACCOUNT_SERVER','acc2.wichat.org/Account/');
-define('ACCOUNT_SERVER','127.0.0.1./Account/');
-define('RECORD_SERVER','rec1.wichat.org/Record/');
+define('ACCOUNT_SERVER','127.0.0.1/Account/');
+define('RECORD_SERVER','127.0.0.1/Record/');
 define('SERVER_ID',1);
+
+define('RECORD_DB_DIR','../db');
+define('RECORD_CACHE_DIR',RECORD_DB_DIR.'/cache/');
+define('COMM_LIST',RECORD_DB_DIR.'/comm.dat');
+define('ACCOUNT_LIST_CACHE',RECORD_DB_DIR.'/account2.dat');
+define('RECORD_LIST',RECORD_DB_DIR.'/rec.dat');
 
 define('TIME_FORMAT','Y/m/d,H:i:s');
 define('TIME_LEN',19);

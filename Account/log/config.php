@@ -8,9 +8,5 @@ define('QUERY_LOGIN_ACCOUNT_LEN',8);
 define('QUERY_LOGIN_KEY_LEN',16);
 define('QUERY_LOGIN_PW_LEN',20);
 
-define('LOGIN_LIST','../db/login.dat');
-define('COMM_LIST','../db/comm.dat');
-define('ACCOUNT_LIST','../db/account.dat');
-
 define('LOGIN_TIME_EXPIRE',60); //Time In Second
 ?>
