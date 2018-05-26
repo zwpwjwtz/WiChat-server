@@ -408,6 +408,7 @@ class accDB extends DB
 		if (!$this->sync()) return false;
 		if (!$this->verify($ID,$PasswordOld)) return false;
 		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
 		//if (self::_count($f)<1) {fclose($f);return false;}
 		fseek($f,32);
 		$temp='';
@@ -419,7 +420,10 @@ class accDB extends DB
 			fseek($f,120,SEEK_CUR);
 		}
 		if ($temp!=$ID) {fclose($f);return false;}
-		fwrite($f,substr(sha1($PasswordNew,true),4,16),16);
+		fwrite($f,$PasswordNew.str_repeat(chr(0),16-strlen($newPassword)));
+		fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID));
+		self::update($f);
+		flock($f,LOCK_UN);
 		fclose($f);
 		return true;
 	}

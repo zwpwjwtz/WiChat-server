@@ -404,6 +404,7 @@ class accDB extends DB
 		if (!$this->sync()) return false;
 		if (!checkKey($newPassword,16)) return false;
 		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
 		//if (self::_count($f)<1) {fclose($f);return false;}
 		fseek($f,32);
 		$temp='';
@@ -414,8 +415,11 @@ class accDB extends DB
 			if (feof($f)) break;
 			fseek($f,120,SEEK_CUR);
 		}
-		if ($temp!=$ID) {fclose($f);return false;}
-		fwrite($f,$newPassword);
+		if ($temp!=$ID) {flock($f,LOCK_UN);fclose($f);return false;}
+		fwrite($f,$newPassword.str_repeat(chr(0),16-strlen($newPassword)));
+		fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID));
+		self::update($f);
+		flock($f,LOCK_UN);
 		fclose($f);
 		return true;
 	}
@@ -444,6 +448,7 @@ class accDB extends DB
 		if (!$this->sync()) return false;
 		if (!checkKey($Password_salted,16)) return false;
 		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
 		//if (self::_count($f)<1) {fclose($f);return false;}
 		fseek($f,32);
 		$temp='';
@@ -454,9 +459,12 @@ class accDB extends DB
 			if (feof($f)) break;
 			fseek($f,120,SEEK_CUR);
 		}
-		if ($temp!=$ID) {fclose($f);return false;}
-		fseek($f,36,SEEK_CUR);
+		if ($temp!=$ID) {flock($f,LOCK_UN);fclose($f);return false;}
+		fseek($f,16,SEEK_CUR);
+		fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID));
 		fwrite($f,$Password_salted);
+		self::update($f);
+		flock($f,LOCK_UN);
 		fclose($f);
 		return true;
 	}
@@ -501,7 +509,9 @@ class accDB extends DB
 			fseek($f,120,SEEK_CUR);
 		}
 		if ($temp!=$ID) {flock($f,LOCK_UN); fclose($f); return -1;}
-		fseek($f,52,SEEK_CUR);
+		fseek($f,16,SEEK_CUR);
+		fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID));
+		fseek($f,16,SEEK_CUR);
 		fwrite($f,chr($newState),1);
 		flock($f,LOCK_UN);
 		self::update($f);
@@ -695,6 +705,7 @@ class relDB extends DB
 				fwrite($f,$inviter.$invited.gmdate(TIME_FORMAT).chr(SERVER_ID).chr(RELATION_STATE_WAITING));
 			}
 		}
+		self::update($f);
 		flock($f,LOCK_UN);
 		fclose($f);
 		return true;		
@@ -734,6 +745,7 @@ class relDB extends DB
 				case RELATION_STATE_WAITING:
 					fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID).chr(RELATION_STATE_NONE)); break;
 			}
+			self::update($f);
 			flock($f,LOCK_UN);
 			fclose($f);
 			return true;
@@ -789,6 +801,7 @@ class relDB extends DB
 			if (feof($f)) {flock($f,LOCK_UN);fclose($f);return false;}
 			fseek($f,112,SEEK_CUR);
 		}
+		self::update($f);
 		flock($f,LOCK_UN);
 		fclose($f);
 		return true;

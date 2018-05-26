@@ -43,7 +43,7 @@ else
 			// Get cached account record for this ID
 			$db2=new accDB2(ACCOUNT_LIST_CACHE);
 			$tempRecord=$db2->getRecord($ID);
-			if (timeDiff($tempRecord->LastTime)>MAX_SESSION_CACHE_TIME)
+			if (timeDiff($tempRecord->LastTime)>MAX_SESSION_CACHE_TIME || $tempRecord->state==ACCOUNT_STATE_NONE)
 			{
 				// Try to get a new record from the acccount server
 				include_once('../scomm/query.php');
