@@ -735,7 +735,7 @@ class recIndex extends DB
 			if (feof($f)) break;
 			fseek($f,47,SEEK_CUR);
 		}
-		if ($recordID==$temp && $state>0) return ftell($f)-17; else return 0;
+		if ($recordID==$tempID && $state>0) return ftell($f)-17; else return 0;
 	}
 	public function getRecord($recordID)	//Return: dataRecordIndex
 	{
@@ -744,7 +744,7 @@ class recIndex extends DB
 		$temp=self::_locateRecord($f,$recordID);
 		if ($temp<=0) return NULL;
 		fseek($f,$temp);
-		$tempRecord=new dataRecord();
+		$tempRecord=new dataRecordIndex();
 		$temp=fread($f,16);	$tempRecord->recordID=$temp;
 		$temp=fread($f,1);	$tempRecord->state=ord($temp);
 		$temp=fread($f,1);	$tempRecord->type=ord($temp);
@@ -760,10 +760,10 @@ class recIndex extends DB
 	{
 		if (!$this->sync()) return NULL;
 		$f=fopen($this->db,'rb');
-		$f=fseek($f,SEEK_END);
+		fseek($f,0,SEEK_END);
 		if (ftell($f) <= 32) return NULL;
 		fseek($f,-64,SEEK_CUR);
-		$tempRecord=new dataRecord();
+		$tempRecord=new dataRecordIndex();
 		$temp=fread($f,16);	$tempRecord->recordID=$temp;
 		$temp=fread($f,1);	$tempRecord->state=ord($temp);
 		$temp=fread($f,1);	$tempRecord->type=ord($temp);
@@ -781,7 +781,7 @@ class recIndex extends DB
 		$f=fopen($this->db,'rb');
 		fseek($f,32);
 		$pos=0;
-		$tempRecord=new dataRecord();
+		$tempRecord=new dataRecordIndex();
 		while(true)
 		{
 			$temp=fread($f,16);
@@ -812,7 +812,7 @@ class recIndex extends DB
 		$recordList=array();
 		$f=fopen($this->db,'rb');
 		fseek($f,32);
-		$tempRecord=new dataRecord();
+		$tempRecord=new dataRecordIndex();
 		while(true)
 		{
 			$temp=fread($f,16);

@@ -170,11 +170,13 @@ else
 						$contentLen=bytesToInt(substr($content,10,4),4);
 						$eof=($content[14]==chr(0))?false:true;
 						$appending=($content[15]==chr(0))?false:true;
-						$content=substr($content,16);
+						$recordIndexID=substr($content,16,16);
+						$content=substr($content,32);
 						$db3=new recDB(RECORD_LIST);
 						if (!$db3->OK) {$outContent.=chr(RESPONSE_FAILED).chr(0); break;}
 						$record=$db3->getRecord($ID,$objID);
 						$updateDB=false;
+						$updateRecord=false;
 						if ($record==NULL)
 						{
 							$record=new dataRecord();
@@ -201,20 +203,29 @@ else
 								$recordIndexEntry->length=$contentLen;
 								$recordIndexEntry->state=REC_INDEX_STATE_ACTIVE;
 								$recordIndexEntry->from=$record->from;
-								$recordIndexFile->setRecord($recordIndexEntry);
 								if ($appending && !$eof) $record->state=REC_STATE_LOCKED_WRITING;
 								$updateDB=true;
+								$updateRecord=true;
 								break;
 							case REC_STATE_LOCKED_WRITING:
 								if ($appending)
 								{
 									$record->length+=$contentLen;
 									$recordIndexEntry=$recordIndexFile->getLastRecord();
+									if ($recordIndexEntry->recordID!= $recordIndexID)
+									{
+										$outContent.=chr(RESPONSE_BUSY).chr(0);
+										break;
+									}
 									$recordIndexEntry->length+=$contentLen;
 									if ($eof) $record->state=REC_STATE_ACTIVE;
-									$recordIndexFile->setRecord($recordIndexEntry);
+									$updateRecord=true;
 								}
-								else	$record->state=REC_STATE_BROKEN;
+								else
+								{
+									$record->state=REC_STATE_BROKEN;
+									$outContent.=chr(RESPONSE_FAILED).chr(0);
+								}
 								$updateDB=true;
 								break;
 							case REC_STATE_BROKEN:
@@ -235,11 +246,22 @@ else
 								break;
 							}
 						}
-						$sf=fopen(RECORD_CACHE_DIR.$record->resID,'ab+');
-						if (!$sf) {$outContent.=chr(RESPONSE_FAILED).chr(0); break;}
-						fwrite($sf,$content);
-						fclose($sf);
-						$outContent.=chr(RESPONSE_SUCCESS).chr(0);				
+						if ($updateRecord)
+						{
+							$sf=fopen(RECORD_CACHE_DIR.$record->resID,'ab+');
+							if (!$sf) $outContent.=chr(RESPONSE_FAILED).chr(0);
+							else
+							{
+								flock($sf,LOCK_EX);
+								fwrite($sf,$content);
+								flock($sf,LOCK_UN);
+								$recordIndexFile->setRecord($recordIndexEntry);
+								$outContent.=chr(RESPONSE_SUCCESS).chr(0);
+								if ($recordIndexEntry->recordID!= $recordIndexID)
+									$outContent.=$recordIndexEntry->recordID;
+							}
+							fclose($sf);
+						}
 						break;								
 					default:
 						$outContent.=chr(RESPONSE_INVALID).chr(0);
