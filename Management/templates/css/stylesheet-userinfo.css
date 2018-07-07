@@ -1,0 +1,92 @@
+.info-body-field {
+	width:75%;
+	margin:0px auto;
+    height:100%;
+    min-height:600px;
+    position:relative;
+}
+
+.info-welcome-words {
+    height:60px;
+    position:relative;
+    left:20px;
+    top:10px;
+    display:block;
+}
+
+.text-info-field {
+    float:left;
+}
+
+.pic-info-field {
+    float:right;
+}
+
+.pic-input-field {
+    float:left;
+    width:290px;
+    height:520px;
+    margin:10px;
+}
+
+.pic-input-frame {
+    width:270px;
+    height:360px;
+    border: 2px ridge;
+    overflow: hidden;
+}
+
+#img2show {
+    max-width:270px;
+    max-height:360px;
+}
+
+.used-pic-1 {
+    max-width:200px;
+    max-height:200px;
+    border:1px ridge;
+    margin:10px;
+}
+
+.used-pic-2 {
+    height:120px;
+    width:90px;
+    border:1px ridge;
+    margin:10px;
+    position:relative;
+    left:-10px;
+}
+
+.used-pic-text {
+    position:relative;
+    left:10px;
+    font-size:17px;
+    display:block;
+}
+
+.info-form-list {
+    margin:30px 0px 30px 50px;
+}
+
+.info-form-list-input {
+	width:200px;
+}
+
+#info-submit {
+    height:40px;
+    font-size:17px;
+    margin:0px 20px;
+}
+
+.info-cancel {
+	position:relative;
+	top:-70px;
+	left:200px;
+    margin:0px 20px;
+}
+
+#info-sysMsg {
+    position:relative;
+    top:-50px;
+    left:20px;
+}

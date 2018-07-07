@@ -1,0 +1,40 @@
+    <div class="info-body-field left">
+        <h1 class="info-welcome-words">
+            User Information
+        </h1>
+        <div class="text-info-field">
+            <form action="?" method="POST">
+                <ul>
+                    <li class="info-form-list">
+                        <input type="text" value="<?=$usrInfoList['Name'] ?>" readonly class="info-form-list-input"/>
+                        <span>User Name</span>
+                    </li>
+                    <li class ="info-form-list">
+                        <input type="password" name="newPW" class="info-form-list-input"/>
+                        <span>* New password</span>
+                    </li>
+                    <li class="info-form-list">
+                        <input type="password" name="checkPW" class="info-form-list-input"/>
+                        <span>* Repeat new password</span>
+                    </li>
+                    <li class="info-form-list">
+                        <input type="password" name="curPW" class="info-form-list-input"/>
+                        <span>* Old password for verification</span>
+                    </li>
+                    <li class="info-form-list">
+                        <span>Note: Items with * are optional</span>
+                    </li>
+                    <li class="info-form-list">
+                        <input type="hidden" name="INFO_ACTION" value="change_all_info" />
+                        <input type="hidden" name="action" value="change_info" />
+                        <input type="submit" value="Change password" id="info-submit"/>
+                    </li>
+                </ul>
+            </form>
+            <form action='?' method='POST' class='info-cancel'>
+                <input type='hidden' name='action' value='' />
+                <input type='submit' value='Go back' id='info-submit' />
+            </form>
+            <div id="info-sysMsg"><?php if (array_key_exists('result',$sysMsg)) echo $sysMsg['result'];?></div>
+        </div>
+    </div>

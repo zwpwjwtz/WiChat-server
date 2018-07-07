@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Managemen System for Wichat Server</title>
+    <?php
+    	foreach($cssList as $temp)
+    		echo '<link rel="stylesheet" href="'.WICHAT_MANAGE_WEB_TEMPLATE.$temp.'" type="text/css">'."\n";
+    	foreach($jsList as $temp)
+    		echo '<script src="'.WICHAT_MANAGE_WEB_TEMPLATE.$temp.'" type="text/javascript"></script>'."\n";
+    ?>
+</head>
+<body>

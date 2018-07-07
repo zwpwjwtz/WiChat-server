@@ -1,0 +1,54 @@
+    <div id="login">
+<?php
+if (!isset($_SESSION["Name"])) {
+?>
+        <!-- Not logged in yet -->
+        <div id="login-field-1">
+            <form method="POST">
+            <div class="login-name-field">
+                <span>Username:</span>
+                <input class="login-name-input" type="text" maxlength="12" id="login-name" name="username" />
+            </div>
+
+            <div class="login-password-field">
+                <span>Password:</span>
+                <input class="login-password-input" type="password" maxlength="18" id="login-password" name="password" />
+            </div>
+
+            <input type="hidden" name="action" value="login" />
+            <input class="login-button" type="submit" value="Log in" onclick="submit();" />
+
+            </form>
+        </div>
+<?php
+} else {
+?>
+        <!-- Login successful -->
+        <div id="login-field-2">
+            <form method="POST" name="showUserInfo">
+                <input type="hidden" name="action" value="userinfo" />
+                <input type="hidden" name="username" value="<?php echo $_SESSION["Name"]; ?>" />
+                <a href="#" class="head-chain" onclick="showUserInfo.submit();">
+                    <span class="login-field-2-name"><?php echo $_SESSION["Name"]; ?></span>
+                </a>
+            </form>
+            <div class="account-operation-field">
+                <span class="account-operation-field-text">
+                    Account Operation
+                </span>
+                <form method="POST" >
+                    <input type="hidden" name="action" value="logout" />
+                    <input class="logout-button" value="Log out" type="submit" />
+                </form>
+            </div>
+        </div>
+<?php
+}
+?>
+        <!-- Login failed -->
+		<div id="login-failed">
+		    <span><?php if (array_key_exists('result',$sysMsg)) echo $sysMsg['result'];?></span>
+			<a><span><?php if (array_key_exists('help',$sysMsg)) echo $sysMsg['help'];?></span></a>
+		</div>
+
+    </div> 
