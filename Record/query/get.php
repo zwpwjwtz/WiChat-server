@@ -52,13 +52,15 @@ else
 			else
 			{
 				// See if the account state is online or not
-				if (!($tempRecord->State==ACCOUNT_STATE_ONLINE || $tempRecord->State==ACCOUNT_STATE_BUSY || $tempRecord->State==ACCOUNT_STATE_HIDE)) $ID='';
+				if (!($tempRecord->State==ACCOUNT_STATE_ONLINE || $tempRecord->State==ACCOUNT_STATE_BUSY || $tempRecord->State==ACCOUNT_STATE_HIDE))
+				{
+					$ID='';
+					$out.=chr(RESPONSE_FAILED).chr(0);
+				}
 			}
 		}
 	}
-	if (!checkID($ID)) 
-		$out.=chr(RESPONSE_FAILED).chr(0); 
-	else
+	if (checkID($ID))
 	{
 		if (!($sessionKey=$db->getKey($ID))) $out.=chr(RESPONSE_FAILED).chr(0);
 		else
