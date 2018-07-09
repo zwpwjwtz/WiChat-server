@@ -1,6 +1,5 @@
 <?php
 if (!defined('RESPONSE_HEADER')) exit(0);
-require_once(dirname(__FILE__).'/../common/config.php');
 
 function checkKey($str,$fixedLen=0)
 {
@@ -37,10 +36,6 @@ function bytesToInt($value,$length)
 	for ($i=0;$i<$length;$i++)
 		$temp+=ord($value[$i])<<($i*8);
 	return $temp;
-}
-function bytes_diff($value1,$value2)  // Return: Bool
-{
-	return bytesToInt($value1,strlen($value1))==bytesToInt($value2,strlen($value2));
 }
 function bytesXOR($value1,$value2)
 {
