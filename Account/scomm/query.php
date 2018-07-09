@@ -3,7 +3,7 @@ require_once('../common/config.php');
 require_once('./config.php');
 
 
-if (!(defined('ACCOUNT_SERVER') && defined('ACCOUNT_LIST') && defined('ACCOUNT_SCOMM_KEY') && defined('RESPONSE_HEADER'))) //Fatal Error
+if (!(defined('ACCOUNT_LIST') && defined('ACCOUNT_SCOMM_QUERY_KEY') && defined('SERVER_RESPONSE_HEADER'))) //Fatal Error
 {
 	exit(0);
 }
@@ -54,9 +54,8 @@ else
 		default:
 			$outContent.=chr(RESPONSE_INVALID).chr(0);
 	}
-	$out.=aes_encrypt(crc32sum($outContent).$outContent,ACCOUNT_SCOMM_KEY);
+	$out.=aes_encrypt(crc32sum($outContent).$outContent,ACCOUNT_SCOMM_QUERY_KEY);
 }
 echo($out);
 exit(0);
-		
 ?>

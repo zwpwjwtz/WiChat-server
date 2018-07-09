@@ -330,7 +330,6 @@ class accDB extends DB
 		if ($temp!=$record->ID) 
 		{
 			if (!self::_inc($f)) {flock($f,LOCK_UN); fclose($f); return false;}
-			fseek($f,-8,SEEK_CUR);
 			fwrite($f,$record->ID.str_repeat(chr(0),128-strlen($record->ID)));
 			fseek($f,-120,SEEK_CUR);
 		}		
