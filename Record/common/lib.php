@@ -274,7 +274,7 @@ class accDB extends DB
 	
 	public function existRecord($ID) //Return:Bool
 	{
-		if (!$this->sync()) return NULL;
+		if (!$this->sync()) return false;
 		$f=fopen($this->db,'rb');
 		if (self::_count($f)<1) {fclose($f);return false;}
 		fseek($f,32);
@@ -578,7 +578,7 @@ class recDB extends DB
 	{
 		if ($data==NULL) return false;
 		if (!(checkID($data->from) && checkID($data->to))) return false;
-		if (!$this->sync()) return NULL;
+		if (!$this->sync()) return false;
 		$f=fopen($this->db,'rb+');
 		flock($f,LOCK_EX);
 		$temp=self::_locateRecord($f,$data->resID);
@@ -832,7 +832,7 @@ class recIndex extends DB
 	public function setRecord($data)	//Return: Bool
 	{
 		if ($data==NULL || $data->recordID=='') return false;
-		if (!$this->sync()) return NULL;
+		if (!$this->sync()) return false;
 		$f=fopen($this->db,'rb+');
 		flock($f,LOCK_EX);
 		$temp=self::_locateRecord($f,$data->recordID);
@@ -921,6 +921,98 @@ class recIndex extends DB
 		flock($f,LOCK_UN);
 		fclose($f);
 		return $cleaned;
+	}
+}
+
+class groupRecDB extends recDB
+{
+	protected $defaultDB='/../db/rec_group.dat',$dbPrefix='WiChatPD';
+	protected $Ver=1;
+	
+	public function getRecord($receptor) //Return: dataRecord
+	{
+		return parent::getRecord("0000000\0",$receptor);
+	}
+	public function setRecord($data)	//Return: Bool
+	{
+		$data->from="0000000\0";
+		return parent::setRecord($data);
+	}
+	public function fetchRecord($groupList,$lastTime) //Return: Array of String
+	{
+		$tempList=array();
+		if (!$this->sync()) return $tempList;
+		$f=fopen($this->db,'rb');
+		fseek($f,40);
+		while(true)
+		{
+			$tempID=fread($f,8);
+			$tempState=ord(fread($f,1));
+			fseek($f,21,SEEK_CUR);
+			$tempTime=fread($f,19);
+			if (in_array($tempID,$groupList) && $tempState>0 && $tempTime>$lastTime) array_push($tempList,$tempID);
+			if (feof($f)) break;
+			fseek($f,14,SEEK_CUR);
+		}
+		fclose($f);
+		return $tempList;
+	}
+}
+
+class groupRecIndex extends recIndex
+{
+	protected $defaultDB='',$dbPrefix='WiChatPI';
+	protected $Ver=1;
+
+	public function getRecordsByTime($lastTime) //Return: Array of dataRecordIndex
+	{
+		$tempList=array();
+		if (!$this->sync()) return $tempList;
+		$f=fopen($this->db,'rb');
+		fseek($f,32);
+		$tempRecord=new dataRecordIndex();
+		while(true)
+		{
+			$ID=fread($f,16);
+			$state=ord(fread($f,1));
+			fseek($f,21,SEEK_CUR);
+			$tempTime=fread($f,19);
+			if ($state>0 && $tempTime>$lastTime)
+			{
+				$tempRecord->recordID=$ID;
+				$tempRecord->state=$state;
+				$tempRecord->lastTime=$tempTime;
+				fseek($f,-40,SEEK_CUR);
+				$temp=fread($f,1);	$tempRecord->type=ord($temp);
+				$temp=fread($f,4);	$tempRecord->length=bytesToInt($temp,4);
+				$temp=fread($f,8);	$tempRecord->from=$temp;
+				array_push($tempList,clone $tempRecord);
+				fseek($f,27,SEEK_CUR);
+			}
+			if (feof($f)) break;
+			fseek($f,7,SEEK_CUR);
+		}
+		fclose($f);
+		return $tempList;
+	}
+	public function getFilePosByID($recordID)
+	{
+		if (!$this->sync()) return -1;
+		$f=fopen($this->db,'rb');
+		fseek($f,32);
+		$pos=0;
+		while(true)
+		{
+			$tempID=fread($f,16);
+			$tempState=ord(fread($f,1));
+			if ($tempState>0 && $tempID==$recordID) break;
+			fread($f,1);
+			$pos+=bytesToInt(fread($f,4),4);
+			if (feof($f)) break;
+			fseek($f,42,SEEK_CUR);
+		}
+		fclose($f);
+		return $pos;
 	}
 }
 ?>

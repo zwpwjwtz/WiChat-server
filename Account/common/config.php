@@ -30,6 +30,7 @@ define('RELATION_STATE_BREAKING',3);
 //define('RELATION_STATE_REFUSED',4);
 
 define('ACCOUNT_ID_MAXLEN',8);
+define('GROUP_ID_MAXLEN',8);
 define('ACCOUNT_ID_NULL',"\0\0\0\0\0\0\0\0");
 define('KEY_NULL','0000000000000000');
 define('ACCOUNT_KEY_LEN',16);
@@ -44,10 +45,16 @@ define('ACCOUNT_SERVER','127.0.0.1/Account/');
 define('SERVER_ID',1);
 
 define('ACCOUNT_DB_DIR','../db');
+define('GROUP_DB_DIR',ACCOUNT_DB_DIR.'/group');
+define('GROUP_MEMBER_DB_DIR',GROUP_DB_DIR.'/member/');
+define('GROUP_REVERSE_DB_DIR',GROUP_DB_DIR.'/reverse/');
 define('LOGIN_LIST',ACCOUNT_DB_DIR.'/login.dat');
 define('ACCOUNT_LIST',ACCOUNT_DB_DIR.'/account.dat');
 define('COMM_LIST',ACCOUNT_DB_DIR.'/comm.dat');
 define('RELATION_LIST',ACCOUNT_DB_DIR.'/relation.dat');
+define('GROUP_LIST',ACCOUNT_DB_DIR.'/group.dat');
+
+define('GROUP_INDEX_SUFFIX','.index');
 
 define('TIME_FORMAT','Y/m/d,H:i:s');
 define('TIME_LEN',19);

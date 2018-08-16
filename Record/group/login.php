@@ -35,31 +35,8 @@ else
 				if (substr($content,0,4)!=crc32sum(substr($content,4))) $out.=chr(RESPONSE_FAILED).chr(0);
 				else //Certification passed.
 				{
-					if (strlen($content)==4 + ACCOUNT_COMMKEY_LEN)
-					{
-						// Compatible with old-style request
-						$option=QUERY_LOGIN_TYPE_SET_KEY;
-					}
-					else
-						$option=ord($content[4]);
-					
 					// Extract pre-shared key
-					switch ($option)
-					{
-						case QUERY_LOGIN_TYPE_SET_KEY:
-							$key=substr($content,4,ACCOUNT_COMMKEY_LEN);
-							$db2=new commDB(COMM_LIST);
-							break;
-						case QUERY_LOGIN_TYPE_CONVERSATION:
-							$key=substr($content,5,ACCOUNT_COMMKEY_LEN);
-							$db2=new commDB(COMM_LIST);
-							break;
-						case QUERY_LOGIN_TYPE_GROUP:
-							$key=substr($content,5,ACCOUNT_COMMKEY_LEN);
-							$db2=new commDB(GROUP_COMM_LIST);
-							break;
-						default:;
-					}
+					$key=substr($content,4,ACCOUNT_COMMKEY_LEN);
 					
 					// Get key salt for client-side encryption
 					$db=new accDB2(ACCOUNT_LIST_CACHE);
@@ -72,6 +49,7 @@ else
 					
 					// Generate session information, write it to database,
 					// then return it to client
+					$db2=new commDB(COMM_LIST);
 					$key=substr(hmac($commKey,$key),0,ACCOUNT_COMMKEY_LEN);
 					if (!$db2->setSession($ID,$Session,$key)) $outContent=chr(RESPONSE_FAILED).chr(0);
 					else $outContent=chr(RESPONSE_SUCCESS).chr(0).$salt;

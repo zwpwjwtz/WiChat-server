@@ -3,3 +3,5 @@
 *.bak
 *.inc
 Build/*
+Account/db/group/*
+Record/db/cache/*

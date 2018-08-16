@@ -55,7 +55,6 @@ X(x4)				4bytes Reserved
 
 
 
-
 Relation.dat
 ====Header====			32bytes Fixed
 WiChatRD			8bytes DB Type
@@ -73,3 +72,41 @@ X					Breaking State
 X(x32)				32bytes Mark of Invited by Invitor
 X(x32)				32bytes Mark of Invitor by Invited
 X(x26)				26bytes Reserved
+
+
+
+Group.dat
+====Header====			32bytes Fixed
+WiChatGD			8bytes DB Type
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time
+X				1byte Server ID
+X				1byte DB Version
+XX				2bytes Record Number
+
+====Record Area====		128bytes Per Record
+XXXXXXX\0			Max 8bytes ID
+XXXXXXX\0			Max 8bytes Creator ID
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Creation Time & updater ID
+X				1byte Current State
+X				1byte Type
+XX				2bytes Member Count
+X(x64)				Max 32bytes Name
+X(x64)				Max 56bytes Description
+
+
+
+Group index file
+====Header====			32bytes Fixed
+WiChatGI			8bytes DB Type
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Last Update Time
+X				1byte Server ID
+X				1byte DB Version
+XX				2bytes Record Number
+
+====Record Area====		64bytes Per Record
+XXXXXXX\0			Max 8bytes Record ID (Member ID)
+X				1byte Current State
+X				1byte Role
+YYYY-MM-DD,HH:MM:SS[ID]		20bytes Join Time & updater ID
+X(x32)				Max 32bytes Note
+X(x2)				2bytes Reserved

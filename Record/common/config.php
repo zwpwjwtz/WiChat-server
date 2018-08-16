@@ -35,9 +35,14 @@ define('SERVER_ID',1);
 
 define('RECORD_DB_DIR','../db');
 define('RECORD_CACHE_DIR',RECORD_DB_DIR.'/cache/');
+define('RECORD_GROUP_DIR',RECORD_DB_DIR.'/group/');
 define('COMM_LIST',RECORD_DB_DIR.'/comm.dat');
+define('GROUP_COMM_LIST',RECORD_DB_DIR.'/comm_group.dat');
 define('ACCOUNT_LIST_CACHE',RECORD_DB_DIR.'/account2.dat');
 define('RECORD_LIST',RECORD_DB_DIR.'/rec.dat');
+define('GROUP_RECORD_LIST',RECORD_DB_DIR.'/rec_group.dat');
+
+define('REC_INDEX_SUFFIX','.index');
 
 define('TIME_FORMAT','Y/m/d,H:i:s');
 define('TIME_LEN',19);

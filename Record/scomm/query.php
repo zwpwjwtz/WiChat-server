@@ -7,9 +7,12 @@ if (!(defined('ACCOUNT_SERVER') && defined('RESPONSE_HEADER'))) //Fatal Error
     exit(0);
 }
 
-function queryAccountServer($action, $session)
+function queryAccountServer($action, $session, $data=array())
 {
-    $sf=file_get_contents('http://'.ACCOUNT_SERVER.'scomm/query.php?a='.$action.'&s='.urlencode($session));
+    if (!is_array($data)) return '';
+    $data['a']=$action;
+    $data['s']=urlencode($session);
+    $sf=file_get_contents('http://'.ACCOUNT_SERVER.'scomm/query.php?'.http_build_query($data));
     if (substr($sf,0,SERVER_RESPONSE_HEADER_LEN)!=SERVER_RESPONSE_HEADER) return '';
     
     // Pharse response from account server

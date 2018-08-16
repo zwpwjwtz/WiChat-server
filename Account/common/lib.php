@@ -86,6 +86,21 @@ class accRecord
 	public $State,$LastDevice; //Int
 	public $Msg; //String
 }
+class groupRecord
+{
+	public $ID; //String
+	public $state,$type; //Int
+	public $memberCount; //Int
+	public $creator,$creationTime; //String
+	public $name,$description; //String
+}
+class groupMember
+{
+	public $ID; //String
+	public $role,$state; //Int
+	public $joinTime; //String
+	public $note; //String
+}
 class DB
 {
 	public $OK; //Bool
@@ -801,5 +816,234 @@ class relDB extends DB
 		fclose($f);
 		return true;
 	}
-}	
+}
+
+class groupDB extends DB
+{
+	
+	protected $defaultDB='/../db/group.dat',$dbPrefix='WiChatGD';
+	protected $Ver=2;
+	const nullID="\0\0\0\0\0\0\0\0";
+	
+	private static function _locateRecord($f,$recordID) //Return: Int
+	{
+		fseek($f,32);
+		while(true)
+		{
+			$tempID=fread($f,8);
+			if ($recordID==$tempID) break;
+			if (feof($f)) break;
+			fseek($f,120,SEEK_CUR);
+		}
+		if ($recordID==$tempID) return ftell($f)-8; else return 0;
+	}
+	
+	public function existRecord($ID) //Return:Bool
+	{
+		if (!$this->sync()) return NULL;
+		if ($ID==self::nullID) return false;
+		$f=fopen($this->db,'rb');
+		$pos=self::_locateRecord($f,$ID);
+		fclose($f);
+		if ($pos<=0) return false;
+		else return true;
+	}
+	public function getRecord($ID) //Return:class groupRecord
+	{
+		if (!$this->sync()) return NULL;
+		$f=fopen($this->db,'rb');
+		$pos=self::_locateRecord($f,$ID);
+		if ($pos<=0) return NULL;
+		$rec=new groupRecord;
+		$rec->ID=$ID;
+		fseek($f,$pos+8);
+		$temp=fread($f,8);		$rec->creator=$temp;
+		$temp=fread($f,20);		$rec->creationTime=substr($temp,0,19);
+		$temp=fread($f,1);		$rec->state=ord($temp);
+		$temp=fread($f,1);		$rec->type=ord($temp);
+		$temp=fread($f,2);		$rec->memberCount=bytesToInt($temp,2);
+		$temp=fread($f,32);		$rec->name=$temp;
+		$temp=fread($f,60);		$rec->description=$temp;
+		fclose($f);
+		return $rec;
+	}
+	public function setRecord($record) //Return:Bool
+	{
+		if (!$record) return false;
+		if (!(checkID($record->ID))) return false; //Necessary Requirement
+		if (!$this->sync()) return false;
+		$record->name=substr($record->name,0,32);
+		$record->description=substr($record->description,0,56);
+		
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		$pos=self::_locateRecord($f,$record->ID);
+		if ($pos<=0) 
+		{
+			if (!self::_inc($f)) {flock($f,LOCK_UN); fclose($f); return false;}
+			$pos=self::_locateRecord($f,self::nullID);
+			if ($pos>0) fseek($f,$pos);
+			else fseek($f,0,SEEK_END);
+			fwrite($f,$record->ID.$record->creator.str_repeat(chr(0),8-strlen($record->creator)).gmdate(TIME_FORMAT).chr(SERVER_ID));
+			fseek($f,-22,SEEK_CUR);
+		}
+		else
+			fseek($f,$pos+36);
+		fwrite($f,chr($record->state).chr($record->type).intToBytes($record->memberCount,2));
+		fwrite($f,$record->name.str_repeat(chr(0),32-strlen($record->name)));
+		fwrite($f,$record->description.str_repeat(chr(0),56-strlen($record->description)));
+		self::update($f);
+		flock($f,LOCK_UN);
+		fclose($f);
+		return true;
+	}
+	public function	delRecord($ID) //Return:Bool
+	{
+		if (!checkID($ID)) return false;
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		$pos=self::_locateRecord($f,$ID);
+		if ($pos<=0 || !self::_dec($f)) {flock($f,LOCK_UN); fclose($f); return false;}
+		
+		fseek($f,$pos);
+		fwrite($f,self::nullID.str_repeat(chr(0),16).gmdate(TIME_FORMAT).chr(SERVER_ID).str_repeat(chr(0),92));
+		self::update($f);
+		flock($f,LOCK_UN);
+		fclose($f);
+		return true;
+	}
+	public function countMember($ID) // Return:Int; <0 indicating error
+	{
+		if (!$this->sync()) return -1;
+		$f=fopen($this->db,'rb');
+		$pos=self::_locateRecord($f,$ID);
+		if ($pos<=0) {fclose($f); return -1;}
+		fseek($f,$pos+38);
+		$temp=fread($f,2);
+		fclose($f);
+		return bytesToInt($temp,2);
+	}
+	public function getName($ID) // Return:String
+	{
+		if (!$this->sync()) return -1;
+		$f=fopen($this->db,'rb');
+		$pos=self::_locateRecord($f,$ID);
+		if ($pos<=0) {fclose($f); return -1;}
+		fseek($f,$pos+40);
+		$temp=fread($f,32);
+		fclose($f);
+		return $temp;
+	}
+}
+
+class groupMemberIndex extends DB
+{
+	protected $defaultDB='',$dbPrefix='WiChatGI';
+	protected $Ver=2;
+	const nullID="\0\0\0\0\0\0\0\0";
+	
+	private static function _locateRecord($f,$recordID) //Return: Int
+	{
+		fseek($f,32);
+		while(true)
+		{
+			$tempID=fread($f,8);
+			if ($recordID==$tempID) break;
+			if (feof($f)) break;
+			fseek($f,56,SEEK_CUR);
+		}
+		if ($recordID==$tempID) return ftell($f)-8; else return 0;
+	}
+	public function existRecord($recordID) //Return: Bool
+	{
+        if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb');
+		$pos=self::_locateRecord($f,$recordID);
+		fclose($f);
+		if ($pos<=0) return false;
+		else return true;
+	}
+	public function getRecord($recordID)	//Return: groupMember
+	{
+		if (!$this->sync()) return NULL;
+		$f=fopen($this->db,'rb');
+		$pos=self::_locateRecord($f,$recordID);
+		if ($pos<=0) return NULL;
+		fseek($f,$pos);
+		$tempRecord=new groupMember();
+		$temp=fread($f,8);	$tempRecord->ID=$temp;
+		$temp=fread($f,1);	$tempRecord->state=ord($temp);
+		$temp=fread($f,1);	$tempRecord->role=ord($temp);
+		$temp=fread($f,19);	$tempRecord->joinTime=$temp;
+		$temp=fread($f,32);	$tempRecord->note=$temp;
+		fclose($f);
+		return $tempRecord;
+	}
+	public function getRecordList($state)	//Return: Array of string
+	{
+		if (!$this->sync()) return NULL;
+		$recordList=array();
+		$f=fopen($this->db,'rb');
+		fseek($f,32);
+		while(true)
+		{
+			$ID=fread($f,8);
+			$tempState=ord(fread($f,1));
+			if ($tempState==$state)
+			{
+				array_push($recordList,$ID);
+			}
+			if (feof($f)) break;
+			fseek($f,55,SEEK_CUR);
+		}
+		fclose($f);
+		return $recordList;
+	}	
+	public function setRecord($data)	//Return: Bool
+	{
+		if ($data==NULL) return false;
+		if (!(checkID($data->ID))) return false;
+		if (!$this->sync()) return false;
+		$data->note=substr($data->note,0,32);
+		
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		$pos=self::_locateRecord($f,$data->ID);
+		if ($pos>0)
+			fseek($f,$pos+8);
+		else
+		{
+			if (!self::_inc($f)) {flock($f,LOCK_UN); fclose($f); return false;}
+			$pos=self::_locateRecord($f,self::nullID);
+			if ($pos>0) fseek($f,$pos);
+			else fseek($f,0,SEEK_END);
+			fwrite($f,$data->ID.chr(0).chr(0).gmdate(TIME_FORMAT).chr(SERVER_ID));
+			fseek($f,-22,SEEK_CUR);
+		}
+		fwrite($f,chr($data->state).chr($data->role));
+		fseek($f,20,SEEK_CUR);
+		fwrite($f,$data->note.str_repeat(chr(0),34-strlen($data->note)));
+		self::update($f);
+		flock($f,LOCK_UN);
+		fclose($f);
+		return true;
+	}
+	public function delRecord($ID) //Return:Bool
+	{
+		if (!checkID($ID)) return false;
+		if (!$this->sync()) return false;
+		$f=fopen($this->db,'rb+');
+		flock($f,LOCK_EX);
+		$pos=self::_locateRecord($f,$ID);
+		if ($pos<=0) return false;
+		if (!self::_dec($f)) {flock($f,LOCK_UN); fclose($f); return false;}
+		fseek($f,$pos);
+		fwrite($f,self::nullID. chr(0).chr(0).gmdate(TIME_FORMAT).chr(SERVER_ID).str_repeat(chr(0),34));
+		self::update($f);
+		flock($f,LOCK_UN);
+		fclose($f); 
+		return true;
+	}
+}
 ?>
