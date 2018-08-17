@@ -1,5 +1,6 @@
 <?php
 if (!defined('RESPONSE_HEADER')) exit(0);
+define('TIME_REG','/^([0-9]{4})\/([0-1][0-9])\/([0-3][0-9]),([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/');
 
 function checkKey($str,$fixedLen=0)
 {
@@ -65,7 +66,7 @@ function stringsToInts($value)  // Return: Array of Integers
 }	
 function timeDiff($time1,$time2='') // Return: Long
 {
-	define('TIME_REG','/^([0-9]{4})\/([0-1][0-9])\/([0-3][0-9]),([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/');
+	date_default_timezone_set('UTC');
 	if (!(preg_match(TIME_REG,$time1,$timeArray1)==1 && ($timeArray1=stringsToInts($timeArray1))!=NULL && checkdate($timeArray1[2],$timeArray1[3],$timeArray1[1]))) return 0;
 	if ($time2=='')	return time()-mktime($timeArray1[4],$timeArray1[5],$timeArray1[6],$timeArray1[2],$timeArray1[3],$timeArray1[1]);
 	else
@@ -463,8 +464,10 @@ class accDB extends DB
 			fseek($f,120,SEEK_CUR);
 		}
 		if ($temp!=$ID) {flock($f,LOCK_UN); fclose($f); return -1;}
-		fseek($f,52,SEEK_CUR);
-		fwrite($f,chr($newState),1);
+		fseek($f,16,SEEK_CUR);
+		fwrite($f,gmdate(TIME_FORMAT).chr(SERVER_ID));
+		fseek($f,16,SEEK_CUR);
+		fwrite($f,chr($newState));
 		flock($f,LOCK_UN);
 		self::update($f);
 		fclose($f);

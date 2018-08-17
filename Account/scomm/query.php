@@ -59,7 +59,7 @@ else
 			$groupID=$_GET['g'];
 			if (!checkID($groupID)) {$outContent.=chr(RESPONSE_FAILED).chr(0); break;}
 			$outContent.=chr(RESPONSE_SUCCESS);
-			$db2=new groupMemberIndex(GROUP_MEMBER_DB_DIR.$groupID.GROUP_INDEX_SUFFIX);
+			$db2=new groupMemberIndex(GROUP_MEMBER_DB_DIR.rtrim($groupID).GROUP_INDEX_SUFFIX);
 			if (!$db2->OK)
 				$outContent.=chr(ACCOUNT_SCOMM_RESPONSE_NONE);
 			else
