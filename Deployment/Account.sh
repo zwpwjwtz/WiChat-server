@@ -10,7 +10,8 @@
 #   WICHAT_ACC_ID           Account server ID
 #   WICHAT_ACC_VER_CLT      List of acceptable client versions
 #   WICHAT_ACC_DB_DIR       Directory for database files
-#   WICHAT_ACC_SCOMM_KEY    Key for communicating with other Wichat servers
+#   WICHAT_ACC_SCOMM_QUERY_KEY    Key for communicating with internal servers
+#   WICHAT_ACC_SCOMM_WEB_KEY    Key for communicating with Wichat web servers
 
 # Function for writing value to a specified field in a
 # "define" statement in a configure file
@@ -55,8 +56,11 @@ fi
 if [ -z "$WICHAT_ACC_DB_DIR" ]; then
     WICHAT_ACC_DB_DIR="'../db'"
 fi
-if [ -z "$WICHAT_ACC_SCOMM_KEY" ]; then
-    WICHAT_ACC_SCOMM_KEY="'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'"
+if [ -z "$WICHAT_ACC_SCOMM_QUERY_KEY" ]; then
+    WICHAT_ACC_SCOMM_QUERY_KEY="'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'"
+fi
+if [ -z "$WICHAT_ACC_SCOMM_WEB_KEY" ]; then
+    WICHAT_ACC_SCOMM_WEB_KEY="'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'"
 fi
 
 # Files to deal with
@@ -68,4 +72,5 @@ writePHPConfigDefine "$WICHAT_ACC_CONFIG" "SERVER_ID" "$WICHAT_ACC_ID"
 writePHPConfigDefine "$WICHAT_ACC_CONFIG" "ACCOUNT_DB_DIR" "$WICHAT_ACC_DB_DIR"
 writePHPConfigArray "$WICHAT_ACC_CONFIG" "validVersion" "$WICHAT_ACC_VER_CLT"
 
-writePHPConfigDefine "$WICHAT_ACC_SCOMM_CONFIG" "ACCOUNT_SCOMM_KEY" "$WICHAT_ACC_SCOMM_KEY"
+writePHPConfigDefine "$WICHAT_ACC_SCOMM_CONFIG" "ACCOUNT_SCOMM_QUERY_KEY" "$WICHAT_ACC_SCOMM_QUERY_KEY"
+writePHPConfigDefine "$WICHAT_ACC_SCOMM_CONFIG" "ACCOUNT_SCOMM_WEB_KEY" "$WICHAT_ACC_SCOMM_WEB_KEY"
