@@ -157,13 +157,25 @@ else
 						}
 						else
 						{
-							if (($pBlock-1)*$blockSize > $totalLength) {$outContent.=chr(RESPONSE_SUCCESS).chr(RESPONSE_RES_OUT_RANGE); break;}
+							if ($pBlock*$blockSize > $totalLength) {$outContent.=chr(RESPONSE_SUCCESS).chr(RESPONSE_RES_OUT_RANGE); break;}
 							$sf=fopen(RECORD_GROUP_DIR.$record->resID,'rb');
 							if (!$sf) {$outContent.=chr(RESPONSE_FAILED).chr(0); break;}
-							fseek($sf,$recordIndexFile->getFilePosByID($recordList[0])+$pBlock*$blockSize);
-							$outContent.=chr(RESPONSE_SUCCESS).chr(RESPONSE_RES_OK).recordListToMList($recordList);
+							
+							// Keep only records within the given range
+							$queryPos=0;
+							$tempRecordList=array();
+							for ($i=0;$i<count($recordList);$i++)
+							{
+								if ($queryPos>=($pBlock+1)*$blockSize) break;
+								if ($queryPos>=$pBlock*$blockSize)
+									array_push($tempRecordList,$recordList[$i]);
+								$queryPos+=$recordList[$i]->length;
+							}
+							$outContent.=chr(RESPONSE_SUCCESS).chr(RESPONSE_RES_OK).recordListToMList($tempRecordList);
+							$startPos=$recordIndexFile->getFilePosByID($recordList[0]->recordID);
+							fseek($sf,$startPos+$pBlock*$blockSize);
 							$outContent.=fread($sf,$blockSize);
-							if (ftell($sf)>=$totalLength)
+							if (ftell($sf)>=$startPos+$totalLength)
 								$outContent[1]=chr(RESPONSE_RES_EOF);
 							fclose($sf);
 						}
@@ -233,6 +245,7 @@ else
 								$recordIndexEntry->length+=$contentLen;
 								$record->length+=$contentLen;
 								if ($eof) $record->state=REC_STATE_ACTIVE;
+								$updateDB=true;
 								$updateRecord=true;
 								break;
 							case REC_STATE_BROKEN:
