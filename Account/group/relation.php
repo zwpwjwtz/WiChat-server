@@ -47,7 +47,7 @@ else
 								$groupList=array();
 							$outContent.=chr(RESPONSE_SUCCESS).chr(0).'<IDList>';
 							foreach ($groupList as $groupID) $outContent.='<ID>'.$groupID.'</ID>';
-							$outContent.='</IDList>'.GROUP_REVERSE_DB_DIR.$ID.GROUP_INDEX_SUFFIX;
+							$outContent.='</IDList>';
 							break;
 						case ACCOUNT_GROUP_RELATION_JOIN:
 							$groupID=substr($content,0,GROUP_ID_MAXLEN);

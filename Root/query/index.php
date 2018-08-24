@@ -33,7 +33,7 @@ else
 		else
 		{
 			$option=ord(substr($buffer,QUERY_HEADER_LEN+1,1));
-			$usePort=($version>5);
+			$usePort=($version>10);
 			if ($option==QUERY_TYPE_NONE)
 				$out.=chr(RESPONSE_SUCCESS).chr(0);
 			else
